@@ -201,6 +201,53 @@ const CCTV_FEEDS = [
   { id: "c4", label: "Implant Ops Overlay", src: "/video/implant.mp4", badgeLabel: "Ops" },
 ];
 
+const CONTROL_IDENTITY_STORAGE_PREFIX = "dystopia-control";
+
+function sanitizeCodename(input) {
+  if (typeof input !== "string") return "";
+  return input.trim().replace(/\s+/g, " ").slice(0, 32);
+}
+
+function getIdentityStorageKey(sessionId) {
+  return `${CONTROL_IDENTITY_STORAGE_PREFIX}:${sessionId}`;
+}
+
+function loadStoredIdentity(sessionId) {
+  if (typeof window === "undefined" || !sessionId) return {};
+  try {
+    const key = getIdentityStorageKey(sessionId);
+    const raw = window.localStorage?.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      const { participantId = null, codename = null } = parsed;
+      return {
+        participantId: participantId || null,
+        codename: sanitizeCodename(codename || "") || null,
+      };
+    }
+  } catch (err) {
+    console.warn("Failed to load stored identity", err);
+  }
+  return {};
+}
+
+function persistStoredIdentity(sessionId, identity) {
+  if (typeof window === "undefined" || !sessionId) return;
+  try {
+    const key = getIdentityStorageKey(sessionId);
+    const participantId = identity?.participantId || null;
+    const codename = sanitizeCodename(identity?.codename || "") || null;
+    if (!participantId && !codename) {
+      window.localStorage?.removeItem(key);
+      return;
+    }
+    window.localStorage?.setItem(key, JSON.stringify({ participantId, codename }));
+  } catch (err) {
+    console.warn("Failed to persist identity", err);
+  }
+}
+
 // ===== Algorithm Banner (Assessment Mode) =====
 function AlgorithmBanner({ text }) {
   if (!text) return null;
@@ -851,8 +898,48 @@ function ControlPanel() {
   // read session/join from query params
   const qs = new URLSearchParams(window.location.search);
   const sessionId = qs.get("session") || "";
-  const [participantId, setParticipantId] = React.useState(null);
-  const [codename, setCodename] = React.useState(null);
+  const storedIdentity = React.useMemo(() => loadStoredIdentity(sessionId), [sessionId]);
+  const [participantId, setParticipantId] = React.useState(storedIdentity.participantId || null);
+  const [codename, setCodename] = React.useState(storedIdentity.codename || null);
+  const [codenameDraft, setCodenameDraft] = React.useState(storedIdentity.codename || "");
+  const [codenameLocked, setCodenameLocked] = React.useState(Boolean(storedIdentity.codename));
+  const [codenameError, setCodenameError] = React.useState("");
+
+  const participantIdRef = React.useRef(participantId);
+  const codenameRef = React.useRef(sanitizeCodename(codename || codenameDraft || ""));
+  const codenameLockedRef = React.useRef(Boolean(storedIdentity.codename));
+
+  React.useEffect(() => {
+    participantIdRef.current = participantId;
+  }, [participantId]);
+
+  React.useEffect(() => {
+    codenameRef.current = sanitizeCodename(codename || codenameDraft || "");
+  }, [codename, codenameDraft]);
+
+  React.useEffect(() => {
+    if (!sessionId) return;
+    const saved = loadStoredIdentity(sessionId);
+    setParticipantId(saved.participantId || null);
+    setCodename(saved.codename || null);
+    setCodenameDraft(saved.codename || "");
+    const locked = Boolean(saved.codename);
+    setCodenameLocked(locked);
+    codenameLockedRef.current = locked;
+    setCodenameError("");
+  }, [sessionId]);
+
+  React.useEffect(() => {
+    if (!sessionId) return;
+    persistStoredIdentity(sessionId, {
+      participantId: participantIdRef.current,
+      codename: codenameRef.current,
+    });
+  }, [sessionId, participantId, codename]);
+
+  React.useEffect(() => {
+    codenameLockedRef.current = codenameLocked;
+  }, [codenameLocked]);
 
   // connection
   const wsRef = React.useRef(null);
@@ -902,7 +989,10 @@ function ControlPanel() {
         ws.onopen = () => {
           setConnected(true);
           try {
-            ws.send(JSON.stringify({ type: "hello", role: "control", sessionId }));
+            const hello = { type: "hello", role: "control", sessionId };
+            if (participantIdRef.current) hello.participantId = participantIdRef.current;
+            if (codenameRef.current) hello.codename = codenameRef.current;
+            ws.send(JSON.stringify(hello));
           } catch {}
         };
         ws.onclose = () => {
@@ -914,13 +1004,21 @@ function ControlPanel() {
         ws.onerror = () => { /* noop */ };
         ws.onmessage = (ev) => {
           let msg; try { msg = JSON.parse(ev.data); } catch { return; }
-          console.log('[control WS]', msg.type, msg); // <-- remove later @TODO remove
 
           if (msg.type === "welcome") return; // optional ack
 
           if (msg.type === "hello_ack" && msg.role === "control") {
-            if (msg.participantId) setParticipantId(msg.participantId);
-            if (msg.codename) setCodename(msg.codename);
+            if (msg.participantId) {
+              participantIdRef.current = msg.participantId;
+              setParticipantId(msg.participantId);
+            }
+            if (msg.codename) {
+              const alias = sanitizeCodename(msg.codename);
+              codenameRef.current = alias;
+              setCodename(alias);
+              setCodenameDraft(alias);
+              setCodenameError("");
+            }
             return;
           }
 
@@ -932,6 +1030,10 @@ function ControlPanel() {
             setScore(msg.value);
             return;
           }
+          if (msg.type === "feedback") {
+            if (typeof msg.total === "number") setScore(msg.total);
+            return;
+          }
           if (msg.type === "penalty" && typeof msg.delta === "number") {
             setScore((s) => Math.max(0, s + msg.delta));
             return;
@@ -939,11 +1041,11 @@ function ControlPanel() {
           if (msg.type === "event_open" && msg.event) {
             const evn = msg.event;
             setEventId(evn.id);
-            
+
             // actions from server or fallback
             const act = Array.isArray(evn.actions) && evn.actions.length ? evn.actions : CRITICAL_ACTIONS;
             setActions(act);
-            
+
             // server sends seconds, convert to ms
             const winMs = Number(evn.responseWindowSec ?? 15) * 1000;
             setWindowMs(winMs);
@@ -953,6 +1055,11 @@ function ControlPanel() {
             setSending(false);
 
             if (typeof evn.banner === "string") setDirective(evn.banner);
+            if (!codenameLockedRef.current) {
+              codenameLockedRef.current = true;
+              setCodenameLocked(true);
+              setCodenameError("");
+            }
             return;
           }
           if (msg.type === "event_close") {
@@ -985,8 +1092,8 @@ function ControlPanel() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          participantId,         // <— important for personal feedback
-          codename,              // optional, keeps your alias consistent
+          participantId: participantIdRef.current || participantId,         // <— important for personal feedback
+          codename: codenameRef.current || undefined,              // optional, keeps your alias consistent
           eventId,               // <— required for server to score the right window
           action: choice,        // server now also accepts `choice`, but send action explicitly
           clientTs: Date.now()
@@ -994,20 +1101,52 @@ function ControlPanel() {
       });
       if (!res.ok) {
         console.error('POST /input failed', res.status, await res.text());
-      } else {
-        console.log('POST /input ok');
       }
     } catch (e) {
       console.error('POST /input network error', e);
     }
     setTimeout(() => setSending(false), 400);
-  }, [HTTP_BASE, sessionId, eventId, participantId, codename]);
+  }, [HTTP_BASE, sessionId, eventId]);
 
   const isPortrait = useIsPortrait();
   const timerRatio = windowMs > 0 ? Math.max(0, Math.min(1, remainingMs / windowMs)) : 0;
   const secondsRemaining = Math.max(0, Math.ceil(remainingMs / 1000));
-  const codenameLabel = (codename || "Awaiting Codename").toUpperCase();
+  const activeCodename = React.useMemo(() => sanitizeCodename(codename || codenameDraft || ""), [codename, codenameDraft]);
+  const codenameLabel = (activeCodename || "Awaiting Codename").toUpperCase();
   const hasDirective = Boolean(directive && directive.trim().length);
+
+  const pushIdentityUpdate = React.useCallback((aliasOverride) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const envelope = { type: "hello", role: "control", sessionId };
+    if (participantIdRef.current) envelope.participantId = participantIdRef.current;
+    const alias = sanitizeCodename(aliasOverride ?? codenameRef.current ?? "");
+    if (alias) envelope.codename = alias;
+    ws.send(JSON.stringify(envelope));
+  }, [sessionId]);
+
+  const handleCodenameSubmit = React.useCallback((event) => {
+    event.preventDefault();
+    if (codenameLockedRef.current) return;
+    const alias = sanitizeCodename(codenameDraft);
+    if (!alias) {
+      setCodenameError("Enter a codename to continue.");
+      return;
+    }
+    codenameRef.current = alias;
+    setCodename(alias);
+    setCodenameDraft(alias);
+    setCodenameLocked(true);
+    codenameLockedRef.current = true;
+    setCodenameError("");
+    pushIdentityUpdate(alias);
+  }, [codenameDraft, pushIdentityUpdate]);
+
+  const handleCodenameChange = React.useCallback((event) => {
+    if (codenameLockedRef.current) return;
+    setCodenameDraft(event.target.value);
+    setCodenameError("");
+  }, []);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
@@ -1042,6 +1181,18 @@ function ControlPanel() {
                 <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-2">Directive</div>
                 <div className={`font-mono text-lg leading-relaxed ${hasDirective ? 'text-white' : 'text-white/40 italic'}`}>
                   {directive || 'Awaiting directive…'}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 px-4 py-4 shadow-inner">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">Codename</div>
+                {codenameLocked ? (
+                  <div className="mt-3 text-base font-mono tracking-[0.2em] text-white">{codenameLabel}</div>
+                ) : (
+                  <div className="mt-3 text-sm text-white/60">Awaiting codename selection…</div>
+                )}
+                <div className="mt-2 text-[11px] font-mono uppercase tracking-[0.25em] text-white/50">
+                  Active · {codenameLabel}
                 </div>
               </div>
 
@@ -1120,6 +1271,39 @@ function ControlPanel() {
               )}
             </div>
           </div>
+        </div>
+      )}
+      {isPortrait && !codenameLocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6">
+          <form
+            onSubmit={handleCodenameSubmit}
+            className="w-full max-w-sm rounded-3xl border border-white/10 bg-neutral-950/95 p-6 shadow-xl"
+          >
+            <div className="text-xs font-mono uppercase tracking-[0.4em] text-white/40">Control Alias</div>
+            <h2 className="mt-2 text-xl font-semibold text-white">Choose your codename</h2>
+            <p className="mt-2 text-sm text-white/60">
+              This alias will identify your inputs for the entire scenario and cannot be changed after you lock it in.
+            </p>
+            <input
+              autoFocus
+              value={codenameDraft}
+              onChange={handleCodenameChange}
+              placeholder="Enter codename"
+              className="mt-5 w-full rounded-2xl border border-neutral-700 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            />
+            {codenameError && (
+              <div className="mt-2 text-sm text-rose-400">{codenameError}</div>
+            )}
+            <Button
+              type="submit"
+              className="mt-5 w-full rounded-2xl bg-emerald-500 text-black font-semibold tracking-[0.2em] uppercase hover:bg-emerald-400"
+            >
+              Lock Codename
+            </Button>
+            <p className="mt-3 text-xs text-white/50">
+              If the scenario begins before you submit, the default codename provided by command will be used.
+            </p>
+          </form>
         </div>
       )}
     </div>
