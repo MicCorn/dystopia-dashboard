@@ -183,6 +183,10 @@ function getSessionT(session) {
 function publicEvent(ev) {
   // control clients don’t need internal flags
   const { _opened, _closed, ...rest } = ev;
+  if ((!Array.isArray(rest.actions) || rest.actions.length === 0) &&
+      Array.isArray(rest.allowedActions) && rest.allowedActions.length) {
+    rest.actions = rest.allowedActions.slice();
+  }
   return rest;
 }
 
