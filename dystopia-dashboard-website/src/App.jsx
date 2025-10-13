@@ -2631,47 +2631,49 @@ const pushAlert = useCallback((a) => {
                   <SocialTicker />
                 </div>
 
-                <div className="grid flex-1 min-h-0 grid-cols-[2.5fr_1fr] gap-4">
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><MapPin className="w-4 h-4" /> Live Incident Map</CardTitle>
-                      <CardDescription className="text-white/50">Sector C overview</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
-                      <HotspotMap alerts={mapAlerts} heightClass="h-full" />
-                    </CardContent>
-                  </Card>
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><Siren className="w-4 h-4" /> Alerts</CardTitle>
-                      <CardDescription className="text-white/50">Latest notifications</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0 space-y-3 overflow-hidden">
-                      {alertHighlights.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
-                          No active alerts.
-                        </div>
-                      )}
-                      {alertHighlights.map((entry) => {
-                        const AlertIcon = entry.icon ?? Siren;
-                        return (
-                          <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
-                            <div className="flex items-center justify-between gap-2 text-sm text-white/80">
-                              <div className="flex items-center gap-2">
-                                <AlertIcon className="h-4 w-4" />
-                                <span>{entry.label}</span>
-                              </div>
-                              <Badge className="bg-white/10 border-white/20 text-white/70">{entry.level?.toUpperCase?.() ?? 'ALERT'}</Badge>
-                            </div>
-                            <div className="mt-1 text-xs text-white/60">{entry.details}</div>
+                <div className="flex flex-1 min-h-0 flex-col gap-4">
+                  <div className="grid flex-1 min-h-0 grid-cols-[2.5fr_1fr] gap-4">
+                    <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><MapPin className="w-4 h-4" /> Live Incident Map</CardTitle>
+                        <CardDescription className="text-white/50">Sector C overview</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 min-h-0">
+                        <HotspotMap alerts={mapAlerts} heightClass="h-full" />
+                      </CardContent>
+                    </Card>
+                    <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><Siren className="w-4 h-4" /> Alerts</CardTitle>
+                        <CardDescription className="text-white/50">Latest notifications</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 min-h-0 space-y-3 overflow-hidden">
+                        {alertHighlights.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
+                            No active alerts.
                           </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
+                        )}
+                        {alertHighlights.map((entry) => {
+                          const AlertIcon = entry.icon ?? Siren;
+                          return (
+                            <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                              <div className="flex items-center justify-between gap-2 text-sm text-white/80">
+                                <div className="flex items-center gap-2">
+                                  <AlertIcon className="h-4 w-4" />
+                                  <span>{entry.label}</span>
+                                </div>
+                                <Badge className="bg-white/10 border-white/20 text-white/70">{entry.level?.toUpperCase?.() ?? 'ALERT'}</Badge>
+                              </div>
+                              <div className="mt-1 text-xs text-white/60">{entry.details}</div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
-                <div className="flex flex-1 min-h-0 flex-wrap gap-4 xl:flex-nowrap">
+                <div className="flex flex-wrap gap-4 xl:flex-nowrap">
                   <div className="order-1 flex flex-1 flex-col gap-4 sm:min-w-[280px] sm:max-w-[320px]">
                     <div className="grid grid-cols-2 gap-3">
                       <Card className="bg-neutral-900/90 border-white/10">
@@ -2787,44 +2789,46 @@ const pushAlert = useCallback((a) => {
                   <SocialTicker />
                 </div>
 
-                <div className="grid flex-1 min-h-0 grid-cols-[2.5fr_1fr] gap-4">
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><MapPin className="w-4 h-4" /> Live Incident Map</CardTitle>
-                      <CardDescription className="text-white/50">Sector C overview</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
-                      <HotspotMap alerts={mapAlerts} heightClass="h-full" />
-                    </CardContent>
-                  </Card>
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><Siren className="w-4 h-4" /> Alerts</CardTitle>
-                      <CardDescription className="text-white/50">Latest notifications</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0 space-y-3 overflow-hidden">
-                      {alertHighlights.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
-                          No active alerts.
-                        </div>
-                      )}
-                      {alertHighlights.map((entry) => {
-                        const AlertIcon = entry.icon ?? Siren;
-                        return (
-                          <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
-                            <div className="flex items-center justify-between gap-2 text-sm text-white/80">
-                              <div className="flex items-center gap-2">
-                                <AlertIcon className="h-4 w-4" />
-                                <span>{entry.label}</span>
-                              </div>
-                              <Badge className="bg-white/10 border-white/20 text-white/70">{entry.level?.toUpperCase?.() ?? 'ALERT'}</Badge>
-                            </div>
-                            <div className="mt-1 text-xs text-white/60">{entry.details}</div>
+                <div className="flex flex-1 min-h-0 flex-col gap-4">
+                  <div className="grid flex-1 min-h-0 grid-cols-[2.5fr_1fr] gap-4">
+                    <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><MapPin className="w-4 h-4" /> Live Incident Map</CardTitle>
+                        <CardDescription className="text-white/50">Sector C overview</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 min-h-0">
+                        <HotspotMap alerts={mapAlerts} heightClass="h-full" />
+                      </CardContent>
+                    </Card>
+                    <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><Siren className="w-4 h-4" /> Alerts</CardTitle>
+                        <CardDescription className="text-white/50">Latest notifications</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 min-h-0 space-y-3 overflow-hidden">
+                        {alertHighlights.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
+                            No active alerts.
                           </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
+                        )}
+                        {alertHighlights.map((entry) => {
+                          const AlertIcon = entry.icon ?? Siren;
+                          return (
+                            <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                              <div className="flex items-center justify-between gap-2 text-sm text-white/80">
+                                <div className="flex items-center gap-2">
+                                  <AlertIcon className="h-4 w-4" />
+                                  <span>{entry.label}</span>
+                                </div>
+                                <Badge className="bg-white/10 border-white/20 text-white/70">{entry.level?.toUpperCase?.() ?? 'ALERT'}</Badge>
+                              </div>
+                              <div className="mt-1 text-xs text-white/60">{entry.details}</div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
