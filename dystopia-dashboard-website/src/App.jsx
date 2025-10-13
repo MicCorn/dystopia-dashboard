@@ -2303,6 +2303,7 @@ const pushAlert = useCallback((a) => {
   }, [series]);
 
   const adoptionRate = 86 + Math.round(Math.random() * 2); // playful drift
+  const implantOperationalRate = 92 + Math.round(Math.random() * 3);
   const [stockLevel] = useState(42);            // demo value; wire to data if you have it
   const [etaSeconds, setEtaSeconds] = useState(15 * 60); // 15 minutes
 
@@ -2670,41 +2671,89 @@ const pushAlert = useCallback((a) => {
                   </Card>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
-                  <Card className="bg-neutral-900/90 border-white/10">
-                    <CardContent className="p-4">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">World Pop</div>
-                      <div className="mt-2 text-2xl font-semibold text-white">2.53B</div>
-                      <div className="text-xs text-white/60 mt-2">Global census</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-neutral-900/90 border-white/10">
-                    <CardContent className="p-4">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Sector C Pop</div>
-                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(sectorCPop)}</div>
-                      <div className="text-xs text-white/60 mt-2">Residents in scope</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-neutral-900/90 border-white/10">
-                    <CardContent className="p-4">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Incident Total</div>
-                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(totals.inc)}</div>
-                      <div className="text-xs text-white/60 mt-2">This week</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-neutral-900/90 border-white/10">
-                    <CardContent className="p-4">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Recalibration Total</div>
-                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(totals.rec)}</div>
-                      <div className="text-xs text-white/60 mt-2">This week</div>
-                    </CardContent>
-                  </Card>
-                </div>
+                <div className="flex flex-1 min-h-0 flex-wrap gap-4 xl:flex-nowrap">
+                  <div className="order-1 flex flex-1 flex-col gap-4 sm:min-w-[280px] sm:max-w-[320px]">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Card className="bg-neutral-900/90 border-white/10">
+                        <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
+                          <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">World Pop</div>
+                          <div className="text-3xl font-semibold text-white">2.53B</div>
+                          <div className="text-xs text-white/60">Total population</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-neutral-900/90 border-white/10">
+                        <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
+                          <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Sector C</div>
+                          <div className="text-3xl font-semibold text-white">{fmt(sectorCPop)}</div>
+                          <div className="text-xs text-white/60">Total population</div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <Card className="bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-white/90 text-sm">Caloric Stockpile</CardTitle>
+                        <CardDescription className="text-white/50 text-xs">Distribution-ready reserves</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2 px-4 pb-4 pt-0">
+                        {(() => {
+                          const pri = priorityFor(stockLevel);
+                          return (
+                            <div className="space-y-2">
+                              <div className="h-1.5 w-full rounded-full bg-white/10">
+                                <div className={`h-full rounded-full ${pri.bar}`} style={{ width: `${Math.max(0, Math.min(100, stockLevel))}%` }} />
+                              </div>
+                              <div className="text-xs text-white/60">Level: <span className={pri.text}>{pri.label}</span></div>
+                              <div className="text-xs text-white/60">ETA resupply: {fmtEta(etaSeconds)}</div>
+                            </div>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+                  </div>
 
-                <div className="grid flex-1 min-h-0 grid-cols-[2fr_1fr_1fr] gap-4">
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                  <div className="order-2 flex flex-1 flex-col gap-4 sm:min-w-[220px] lg:w-60">
+                    <Card className="bg-neutral-900/90 border-white/10">
+                      <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
+                        <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Incident Total</div>
+                        <div className="text-3xl font-semibold text-white">{fmt(totals.inc)}</div>
+                        <div className="text-xs text-white/60">This week</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-neutral-900/90 border-white/10">
+                      <CardContent className="flex w-full flex-col items-center gap-3 p-4 text-center">
+                        <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Implant Adoption</div>
+                        <div className="text-3xl font-semibold text-white">{adoptionRate}%</div>
+                        <div className="h-1.5 w-full rounded-full bg-white/10">
+                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${adoptionRate}%` }} />
+                        </div>
+                        <div className="text-xs text-white/60">Operational coverage</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="order-3 flex flex-1 flex-col gap-4 sm:min-w-[220px] lg:w-60">
+                    <Card className="bg-neutral-900/90 border-white/10">
+                      <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
+                        <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Recalibration Total</div>
+                        <div className="text-3xl font-semibold text-white">{fmt(totals.rec)}</div>
+                        <div className="text-xs text-white/60">This week</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-neutral-900/90 border-white/10">
+                      <CardContent className="flex w-full flex-col items-center gap-3 p-4 text-center">
+                        <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Implant Operation</div>
+                        <div className="text-3xl font-semibold text-white">{implantOperationalRate}%</div>
+                        <div className="h-1.5 w-full rounded-full bg-white/10">
+                          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(0, Math.min(100, implantOperationalRate))}%` }} />
+                        </div>
+                        <div className="text-xs text-white/60">Systems online</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="order-4 flex min-h-[260px] flex-1 flex-col border-white/10 bg-neutral-900/90">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-white/90 flex items-center gap-2"><Activity className="w-4 h-4" /> Incident Response Trend</CardTitle>
+                      <CardTitle className="flex items-center gap-2 text-white/90"><Activity className="w-4 h-4" /> Incident Response Trend</CardTitle>
                       <CardDescription className="text-white/50">Past 24 time slices</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0">
@@ -2728,41 +2777,6 @@ const pushAlert = useCallback((a) => {
                           <Area type="monotone" dataKey="recalibrations" stroke="#22d3ee" fill="url(#mediaRec)" name="Recalibrations" />
                         </AreaChart>
                       </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                  <Card className="flex flex-col justify-between bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-white/90 text-base">Caloric Stockpile</CardTitle>
-                      <CardDescription className="text-white/50 text-xs">Distribution-ready reserves</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {(() => {
-                        const pri = priorityFor(stockLevel);
-                        return (
-                          <div className="space-y-2">
-                            <div className="h-2 w-full rounded-full bg-white/10">
-                              <div className={`h-full rounded-full ${pri.bar}`} style={{ width: `${Math.max(0, Math.min(100, stockLevel))}%` }} />
-                            </div>
-                            <div className="text-xs text-white/60">Level: <span className={pri.text}>{pri.label}</span></div>
-                            <div className="text-xs text-white/60">ETA resupply: {fmtEta(etaSeconds)}</div>
-                          </div>
-                        );
-                      })()}
-                    </CardContent>
-                  </Card>
-                  <Card className="flex flex-col justify-between bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-white/90 text-base">Implant Adoption</CardTitle>
-                      <CardDescription className="text-white/50 text-xs">Operational coverage</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="h-2 w-full rounded-full bg-white/10">
-                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${adoptionRate}%` }} />
-                        </div>
-                        <div className="text-xs text-white/60">Adoption rate: {adoptionRate}%</div>
-                        <div className="text-xs text-white/60">Operational implants steady</div>
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -2816,9 +2830,9 @@ const pushAlert = useCallback((a) => {
                 <div className="grid grid-cols-4 gap-4">
                   <Card className="bg-neutral-900/90 border-white/10">
                     <CardContent className="p-4">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">World Pop</div>
+                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">World</div>
                       <div className="mt-2 text-2xl font-semibold text-white">2.53B</div>
-                      <div className="text-xs text-white/60 mt-2">Global census</div>
+                      <div className="text-xs text-white/60 mt-2">Total Population</div>
                     </CardContent>
                   </Card>
                   <Card className="bg-neutral-900/90 border-white/10">
