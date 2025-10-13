@@ -453,7 +453,10 @@ function LeaderboardPane({
 // ===== QR Card (Assessment Mode) =====
 function QRCard({ sessionId }) {
   const [dataUrl, setDataUrl] = React.useState(null);
+  const [startStatus, setStartStatus] = React.useState("idle");
+  const [startMessage, setStartMessage] = React.useState("");
   const controlUrl = `${window.location.origin}/?mode=assessment&session=${encodeURIComponent(sessionId || "")}#/control`;
+  const startEndpoint = sessionId ? `http://localhost:8787/api/session/${encodeURIComponent(sessionId)}/start` : null;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -468,6 +471,24 @@ function QRCard({ sessionId }) {
     return () => { cancelled = true; };
   }, [controlUrl]);
 
+  const handleStart = React.useCallback(async () => {
+    if (!startEndpoint) return;
+    setStartStatus("loading");
+    setStartMessage("");
+    try {
+      const res = await fetch(startEndpoint, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body?.trim() || `Request failed (${res.status})`);
+      }
+      setStartStatus("success");
+      setStartMessage("Session start triggered.");
+    } catch (err) {
+      setStartStatus("error");
+      setStartMessage(err?.message || "Failed to start session.");
+    }
+  }, [startEndpoint]);
+
   return (
     <Card className="bg-neutral-900 border-white/10">
       <CardHeader className="pb-2">
@@ -480,9 +501,33 @@ function QRCard({ sessionId }) {
         ) : (
           <div className="w-36 h-36 rounded-lg border border-dashed border-white/15 grid place-items-center text-xs text-white/50">QR loading…</div>
         )}
-        <div className="text-sm text-white/80 space-y-1">
-          <div><span className="text-white/60">Session:</span> {sessionId || "—"}</div>
-          <div className="text-white/60">URL:<div className="text-white/70 break-all">{controlUrl}</div></div>
+        <div className="text-sm text-white/80 space-y-3">
+          <div className="space-y-1">
+            <div className="text-white/60">URL:</div>
+            <div className="text-white/70 break-all">{controlUrl}</div>
+          </div>
+          <div className="space-y-2">
+            <Button
+              onClick={handleStart}
+              disabled={!startEndpoint || startStatus === "loading"}
+              className="flex items-center gap-2 !bg-emerald-500/90 hover:bg-emerald-400/90 text-black border border-emerald-300/60 disabled:opacity-60"
+            >
+              {startStatus === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              <span>{startStatus === "success" ? "Session Started" : "Start Session"}</span>
+            </Button>
+            {startMessage && (
+              <div className={`text-xs ${startStatus === "error" ? "text-red-300" : "text-emerald-300"}`}>
+                {startMessage}
+              </div>
+            )}
+            {!startEndpoint && (
+              <div className="text-xs text-white/50">Session ID missing; cannot start.</div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1133,6 +1178,7 @@ function ControlPanel() {
   const wsRef = React.useRef(null);
   const reconnectRef = React.useRef(null);
   const [connected, setConnected] = React.useState(false);
+  const eventIdRef = React.useRef(null);
 
   // UI state
   const [directive, setDirective] = React.useState(""); // THE ALGORITHM line
@@ -1145,6 +1191,10 @@ function ControlPanel() {
   const [remainingMs, setRemainingMs] = React.useState(0);
   const [sending, setSending] = React.useState(false);
   const [lastSent, setLastSent] = React.useState(null);
+
+  React.useEffect(() => {
+    eventIdRef.current = eventId;
+  }, [eventId]);
 
   // derive HTTP base from WS_URL, normalize hostname for mobile clients
   const HTTP_BASE = React.useMemo(() => {
@@ -1228,6 +1278,7 @@ function ControlPanel() {
           }
           if (msg.type === "event_open" && msg.event) {
             const evn = msg.event;
+            eventIdRef.current = evn.id;
             setEventId(evn.id);
 
             // actions from server or fallback
@@ -1251,6 +1302,7 @@ function ControlPanel() {
             return;
           }
           if (msg.type === "event_close") {
+            eventIdRef.current = null;
             setEventId(null);
             setActions([]);
             setWindowMs(0);
@@ -1259,6 +1311,7 @@ function ControlPanel() {
             return;
           }
           if (msg.type === "final") {
+            eventIdRef.current = null;
             setEventId(null);
             setDirective("ASSESSMENT COMPLETE");
             return;
@@ -1272,7 +1325,8 @@ function ControlPanel() {
 
   // submit choice -> POST /api/session/:id/input
   const submitChoice = React.useCallback(async (choice) => {
-    if (!sessionId || !eventId || !choice) return;
+    const pendingEventId = eventIdRef.current;
+    if (!sessionId || !pendingEventId || !choice) return;
     setSending(true);
     setLastSent(choice);
     try {
@@ -1282,7 +1336,7 @@ function ControlPanel() {
         body: JSON.stringify({
           participantId: participantIdRef.current || participantId,         // <— important for personal feedback
           codename: codenameRef.current || undefined,              // optional, keeps your alias consistent
-          eventId,               // <— required for server to score the right window
+          eventId: pendingEventId,               // <— required for server to score the right window
           action: choice,        // server now also accepts `choice`, but send action explicitly
           clientTs: Date.now()
         }),
@@ -1293,8 +1347,20 @@ function ControlPanel() {
     } catch (e) {
       console.error('POST /input network error', e);
     }
-    setTimeout(() => setSending(false), 400);
-  }, [HTTP_BASE, sessionId, eventId]);
+    // Delay clearing actions until the "Sending…" state has settled.
+    const settleDelayMs = 400;
+    const clearDelayMs = 150;
+    setTimeout(() => {
+      setSending(false);
+      if (eventIdRef.current === pendingEventId) {
+        setTimeout(() => {
+          if (eventIdRef.current === pendingEventId) {
+            setActions([]);
+          }
+        }, clearDelayMs);
+      }
+    }, settleDelayMs);
+  }, [HTTP_BASE, sessionId]);
 
   const isPortrait = useIsPortrait();
   const timerRatio = windowMs > 0 ? Math.max(0, Math.min(1, remainingMs / windowMs)) : 0;

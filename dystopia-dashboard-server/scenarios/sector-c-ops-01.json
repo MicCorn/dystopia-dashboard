@@ -4,7 +4,7 @@
     "title": "Sector C Stress Test",
     "durationHintSec": 240,
     "algoTone": "abrasive",
-    "endBufferSec": 8
+    "endBufferSec": 3
   },
   "events": [
     {
