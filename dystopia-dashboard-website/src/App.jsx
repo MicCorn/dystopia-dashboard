@@ -38,7 +38,11 @@ import {
   Gauge,
   Radio,
   Volume2,
-  VolumeX
+  VolumeX,
+  Award,
+  Loader2,
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
 import {
   Card,
@@ -118,6 +122,7 @@ function getViewFromHash() {
   const h = (window.location.hash || "").toLowerCase();
   if (h.includes("/media")) return "media";     // TV feeds, CCTV, social, PSAs
   if (h.includes("/control")) return "control"; // controller app
+  if (h.includes("/leaderboard")) return "leaderboard"; // assessment results
   return "ops"; // default
 }
 
@@ -257,6 +262,189 @@ function AlgorithmBanner({ text }) {
         <Siren className="w-4 h-4" />
         <div className="text-sm font-semibold tracking-wide">THE ALGORITHM:</div>
         <div className="text-sm">{text}</div>
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardPane({
+  rows,
+  status,
+  error,
+  onRetry,
+  assessmentFinal,
+  typingIndex,
+  algoText,
+  sessionId,
+  isAssessment,
+}) {
+  const hasContestants = Array.isArray(rows) && rows.some((row) => !row?.placeholder);
+  const directiveMessage = assessmentFinal
+    ? "The following members have been selected to join the HCI Taskforce."
+    : "Awaiting final clearance from THE ALGORITHM. Maintain observation protocols.";
+  const sessionTag = sessionId
+    ? `Session ${sessionId}`
+    : isAssessment
+      ? "Session Link Active"
+      : "Live Operations";
+  const statusLabel = status === "loading" ? "Compiling" : assessmentFinal ? "Finalized" : "Pending";
+  const footnote = assessmentFinal
+    ? "Distribute credentials immediately. Monitor for override directives."
+    : "Hold transmissions until THE ALGORITHM concludes.";
+
+  const formatScore = (value) => {
+    if (typeof value !== "number" || Number.isNaN(value)) return "—";
+    return value.toLocaleString();
+  };
+
+  const rowTone = (row) => {
+    if (row?.placeholder) return "border-white/5 bg-black/30 text-white/40";
+    if (row.rank === 1) return "border-emerald-400/70 bg-emerald-500/10 text-emerald-50 shadow-[0_0_25px_rgba(34,197,94,0.25)]";
+    if (row.rank === 2) return "border-cyan-400/60 bg-cyan-500/10 text-cyan-50";
+    if (row.rank === 3) return "border-blue-400/60 bg-blue-500/10 text-blue-50";
+    return "border-white/10 bg-white/5 text-white/80";
+  };
+
+  const scoreTone = (row, revealed) => {
+    if (!revealed) return "text-white/30";
+    if (typeof row?.score === "number") {
+      return row.score <= 0 ? "text-emerald-300" : "text-rose-300";
+    }
+    return "text-white/50";
+  };
+
+  return (
+    <div className="h-full w-full flex flex-col">
+      <div className="flex-1 overflow-y-auto py-10 md:py-12">
+        <div className="max-w-5xl mx-auto px-2 sm:px-4 space-y-8">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-3 text-[11px] uppercase tracking-[0.5em] text-emerald-300">
+              <Sparkles className="w-4 h-4" />
+              <span>THE ALGORITHM</span>
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h1 className="text-4xl font-semibold tracking-tight text-white">Selection Ledger // HCI Taskforce</h1>
+            <p className="max-w-2xl mx-auto text-sm md:text-base text-white/70">{directiveMessage}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.35em] text-white/40 font-mono">
+              <span>{sessionTag}</span>
+              <span className="h-3 w-px bg-white/20" aria-hidden="true" />
+              <span>Status · {statusLabel}</span>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-3xl border border-emerald-500/25 bg-neutral-950/90 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
+            <div className="absolute inset-0 pointer-events-none border border-emerald-400/20 rounded-3xl" />
+            <div className="absolute inset-0 [mask-image:radial-gradient(circle_at_top,rgba(34,197,94,0.28),transparent_75%)] bg-emerald-500/10" />
+            <div className="relative p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-xs uppercase tracking-[0.35em] text-white/40 font-mono">
+                <span>Clearance Broadcast</span>
+                <span>Authority // THE ALGORITHM</span>
+              </div>
+
+              {algoText ? (
+                <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left text-sm text-emerald-100 shadow-[0_0_25px_rgba(34,197,94,0.18)]">
+                  <div className="text-[10px] uppercase tracking-[0.6em] text-emerald-200/80 mb-1">Live Decree</div>
+                  <div className="leading-relaxed">{algoText}</div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.4em] text-white/50">
+                  Awaiting pronouncement from THE ALGORITHM…
+                </div>
+              )}
+
+              {status === "loading" ? (
+                <div className="py-12 grid place-items-center text-white/70">
+                  <Loader2 className="w-9 h-9 animate-spin text-emerald-300" />
+                  <div className="mt-4 text-sm text-white/60">Compiling candidate telemetry…</div>
+                </div>
+              ) : status === "error" ? (
+                <div className="py-12 text-center space-y-5">
+                  <div className="text-sm text-rose-300">{error || "Unable to retrieve leaderboard."}</div>
+                  <Button
+                    onClick={onRetry}
+                    className="inline-flex items-center gap-2 bg-emerald-500 text-black hover:bg-emerald-400"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Retry uplink
+                  </Button>
+                </div>
+              ) : hasContestants ? (
+                <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                  <AnimatePresence initial={false}>
+                    {rows.map((row, idx) => {
+                      const key = row?.placeholder ? `placeholder-${idx}` : row?.participantId || row?.rank || idx;
+                      const rowClass = rowTone(row);
+                      const totalLength = (row?.codename || "").length;
+                      const revealed = !row?.placeholder && (row?.typedName?.length || 0) >= totalLength && totalLength >= 0;
+                      const scoreClass = scoreTone(row, revealed);
+                      return (
+                        <motion.div
+                          key={key}
+                          initial={{ opacity: 0, y: 16 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05, duration: 0.4 }}
+                          className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4 backdrop-blur-sm ${rowClass}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`relative flex h-12 w-12 items-center justify-center rounded-full border ${row?.placeholder ? 'border-white/15 text-white/35 bg-black/40' : 'border-white/30 text-white bg-black/30'}`}>
+                              <span className="font-semibold tracking-wide text-sm">#{String(row?.rank ?? idx + 1).padStart(2, '0')}</span>
+                              {!row?.placeholder && row?.rank === 1 && (
+                                <Award className="absolute -top-3 right-0 w-4 h-4 text-emerald-300 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-lg font-semibold text-white tracking-tight">
+                                {row?.placeholder ? (
+                                  <span className="text-white/30">— — —</span>
+                                ) : (
+                                  <span className="font-mono">
+                                    {row?.typedName || '\u00A0'}
+                                    {typingIndex === idx && (
+                                      <span className="ml-1 inline-block align-baseline text-emerald-200 animate-pulse">▌</span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] uppercase tracking-[0.35em] text-white/40 mt-1">
+                                {row?.placeholder ? "Awaiting candidate" : row?.participantId}
+                              </div>
+                              {!row?.placeholder && revealed && row?.rank <= 3 && (
+                                <Badge className="mt-2 w-fit bg-emerald-500/20 border-emerald-400/40 text-emerald-200 text-[10px] uppercase tracking-[0.3em]">
+                                  Clearance Granted
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] uppercase tracking-[0.5em] text-white/35">Score</div>
+                            {row?.placeholder ? (
+                              <div className="text-sm text-white/30">—</div>
+                            ) : (
+                              <div className={`mt-1 text-xl font-semibold font-mono ${scoreClass}`}>
+                                {revealed ? formatScore(row?.score) : "⋯"}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="py-12 text-center text-sm text-white/60">
+                  {assessmentFinal
+                    ? "No qualifying participants logged for this session."
+                    : "The Algorithm is still vetting participants. Hold for final adjudication."}
+                </div>
+              )}
+
+              <Separator className="bg-white/10" />
+              <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">
+                {footnote}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1334,6 +1522,152 @@ function HungerCrisisDashboard() {
   const serverEventsRef = useRef(new Map()); // id -> event snapshot
   const [algoText, setAlgoText] = useState("");         // THE ALGORITHM latest line
   const [assessmentFinal, setAssessmentFinal] = useState(false);
+  const [leaderboardEntries, setLeaderboardEntries] = useState([]);
+  const [leaderboardStatus, setLeaderboardStatus] = useState("idle"); // idle | loading | success | error
+  const [leaderboardError, setLeaderboardError] = useState(null);
+  const [typedNames, setTypedNames] = useState([]);
+  const [typingIndex, setTypingIndex] = useState(-1);
+  const [showFinalOverlay, setShowFinalOverlay] = useState(false);
+  const finalRedirectRef = useRef(false);
+
+  const fetchLeaderboard = useCallback(async () => {
+    if (!assessmentSessionId) {
+      setLeaderboardEntries([]);
+      setLeaderboardStatus("idle");
+      setLeaderboardError(null);
+      return;
+    }
+
+    setLeaderboardStatus("loading");
+    setLeaderboardError(null);
+    try {
+      const res = await fetch(`http://localhost:8787/api/session/${encodeURIComponent(assessmentSessionId)}/leaderboard`);
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`);
+      }
+      const json = await res.json();
+      if (!Array.isArray(json)) {
+        throw new Error("Malformed leaderboard response");
+      }
+
+      const normalized = json
+        .filter((entry) => entry && typeof entry === "object")
+        .sort((a, b) => {
+          const rankA = Number.isFinite(Number(a?.rank)) ? Number(a.rank) : Number.MAX_SAFE_INTEGER;
+          const rankB = Number.isFinite(Number(b?.rank)) ? Number(b.rank) : Number.MAX_SAFE_INTEGER;
+          return rankA - rankB;
+        })
+        .slice(0, 10);
+
+      setLeaderboardEntries(normalized);
+      setLeaderboardStatus("success");
+    } catch (err) {
+      console.error("Failed to fetch leaderboard", err);
+      setLeaderboardStatus("error");
+      setLeaderboardError(err?.message || "Unable to load leaderboard.");
+    }
+  }, [assessmentSessionId]);
+
+  useEffect(() => {
+    if (!assessmentFinal) return;
+    fetchLeaderboard();
+  }, [assessmentFinal, fetchLeaderboard]);
+
+  useEffect(() => {
+    if (!assessmentFinal) {
+      finalRedirectRef.current = false;
+      setShowFinalOverlay(false);
+    }
+  }, [assessmentFinal]);
+
+  useEffect(() => {
+    if (!assessmentFinal) return;
+    if (view !== 'media') return;
+    if (finalRedirectRef.current) {
+      setShowFinalOverlay(false);
+      return;
+    }
+    setShowFinalOverlay(true);
+    const timeout = setTimeout(() => {
+      finalRedirectRef.current = true;
+      setShowFinalOverlay(false);
+      window.location.hash = '/leaderboard';
+    }, 2400);
+    return () => {
+      clearTimeout(timeout);
+      setShowFinalOverlay(false);
+    };
+  }, [assessmentFinal, view]);
+
+  useEffect(() => {
+    if (view !== 'leaderboard') return;
+    if (leaderboardStatus !== 'success' || leaderboardEntries.length === 0) {
+      setTypedNames([]);
+      setTypingIndex(-1);
+      return;
+    }
+
+    const entries = leaderboardEntries;
+    let cancelled = false;
+    const timers = [];
+    setTypedNames(Array(entries.length).fill(""));
+    setTypingIndex(-1);
+
+    const typeEntry = (entryIndex) => {
+      if (cancelled) return;
+      if (entryIndex >= entries.length) {
+        setTypingIndex(-1);
+        return;
+      }
+
+      const target = entries[entryIndex]?.codename || "";
+      if (!target.length) {
+        setTypedNames((prev) => {
+          const next = [...prev];
+          next[entryIndex] = "";
+          return next;
+        });
+        const skip = setTimeout(() => typeEntry(entryIndex + 1), 250);
+        timers.push(skip);
+        return;
+      }
+
+      setTypingIndex(entryIndex);
+      let charIndex = 0;
+      const typeChar = () => {
+        if (cancelled) return;
+        charIndex += 1;
+        setTypedNames((prev) => {
+          const next = [...prev];
+          next[entryIndex] = target.slice(0, Math.min(charIndex, target.length));
+          return next;
+        });
+
+        if (charIndex < target.length) {
+          const delay = setTimeout(typeChar, target.length > 18 ? 55 : 70);
+          timers.push(delay);
+        } else {
+          const pause = setTimeout(() => {
+            setTypingIndex(-1);
+            typeEntry(entryIndex + 1);
+          }, 320);
+          timers.push(pause);
+        }
+      };
+
+      const start = setTimeout(typeChar, 90);
+      timers.push(start);
+    };
+
+    const kickoff = setTimeout(() => typeEntry(0), 350);
+    timers.push(kickoff);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => clearTimeout(t));
+      setTypingIndex(-1);
+    };
+  }, [view, leaderboardEntries, leaderboardStatus]);
 
   // Helper functions for alert sounds
   function ensureAudioCtx() {
@@ -1529,6 +1863,7 @@ function HungerCrisisDashboard() {
       ...prev,
     ].slice(0, 100));
   }, [publicImages, selectedAd]);
+
   const setSelectedIncidentSafe = useCallback((it) => setSelectedIncident(it), []);
 
   const addIncidentFromAlert = useCallback((a, meta = {}) => {
@@ -1810,6 +2145,20 @@ const pushAlert = useCallback((a) => {
     if (currentCritical) live.unshift(currentCritical);
     return live.map(a => ({ id: a.id, level: a.level, label: a.label, x: a.x, y: a.y }));
   }, [isAssessment, serverEvents, alerts, currentCritical]);
+
+  const leaderboardRows = useMemo(() => {
+    const rows = leaderboardEntries.map((entry, idx) => ({
+      ...entry,
+      typedName: typedNames[idx] ?? "",
+    }));
+    for (let i = rows.length; i < 10; i += 1) {
+      rows.push({
+        rank: i + 1,
+        placeholder: true,
+      });
+    }
+    return rows;
+  }, [leaderboardEntries, typedNames]);
 
   // Derived stats
   const totals = useMemo(() => {
@@ -2144,6 +2493,18 @@ const pushAlert = useCallback((a) => {
                   </Card>
                 </div>
               </div>
+            ) : view === 'leaderboard' ? (
+              <LeaderboardPane
+                rows={leaderboardRows}
+                status={leaderboardStatus}
+                error={leaderboardError}
+                onRetry={fetchLeaderboard}
+                assessmentFinal={assessmentFinal}
+                typingIndex={typingIndex}
+                algoText={algoText}
+                sessionId={assessmentSessionId}
+                isAssessment={isAssessment}
+              />
             ) : view === 'ops' ? (
               <div className="flex h-full min-h-0 flex-col gap-4">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
@@ -2422,7 +2783,7 @@ const pushAlert = useCallback((a) => {
           </div>
         )}
       </div>
-      {assessmentFinal && (
+      {showFinalOverlay && view === 'media' && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur grid place-items-center">
           <div className="text-center space-y-3">
             <div className="text-3xl font-semibold text-white">Assessment Complete</div>
