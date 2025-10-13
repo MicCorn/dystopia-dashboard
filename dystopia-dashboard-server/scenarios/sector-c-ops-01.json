@@ -8,6 +8,26 @@
   },
   "events": [
     {
+      "id": "evt-005",
+      "t": 5,
+      "type": "alert",
+      "level": "info",
+      "title": "Hunger Implant Ping",
+      "location": "South Gate",
+      "details": "Truck D-17 stalled; agitation risk rising.",
+      "map": { "x": 20, "y": 82 },
+      "requiresAction": true,
+      "responseWindowSec": 20,
+      "allowedActions": ["Dispatch units", "Throttle hits", "Issue PSA"],
+      "correctAction": "Issue PSA",
+      "pointsPossible": 150,
+      "penalties": { "wrong": -125, "late": -50, "noResponse": -75 },
+      "algoCopy": [
+        { "tOffset": 0,  "text": "DISPATCH to South Tunnels. Do not delay." },
+        { "tOffset": 10, "text": "Escalation likely. MOVE—no dithering." }
+      ]
+    },
+    {
       "id": "evt-034",
       "t": 34,
       "type": "alert",

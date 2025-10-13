@@ -35,17 +35,6 @@ function loadScenario(scenarioId) {
   return JSON.parse(text);
 }
 
-/** IP helper */
-function getLanIP() {
-  const ifaces = os.networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const iface of ifaces[name] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
-    }
-  }
-  return "127.0.0.1";
-}
-
 /** Scoring (Kahoot-style) */
 function computeScore({ event, action, nowSec }) {
   const window = event.responseWindowSec;
