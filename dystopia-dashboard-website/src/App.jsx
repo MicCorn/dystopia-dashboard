@@ -1308,6 +1308,7 @@ function ControlPanel() {
             setWindowMs(0);
             setRemainingMs(0);
             setSending(false);
+            setDirective("");
             return;
           }
           if (msg.type === "final") {
@@ -1414,9 +1415,9 @@ function ControlPanel() {
       ) : (
         <div className="flex-1 flex flex-col items-center px-4 py-6">
           <div className="w-full max-w-sm sm:max-w-md flex flex-col flex-1 rounded-[32px] border border-neutral-800 bg-neutral-900/80 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.45)] overflow-hidden">
-            <header className={`px-5 py-4 border-b border-neutral-800 ${hasDirective ? 'bg-red-600 text-white' : 'bg-black text-white'}`}>
+            <header className="px-5 py-4 border-b border-neutral-800 bg-black text-white">
               <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.35em]">
-                <span className={`flex-1 ${hasDirective ? 'codename-flash text-white' : 'text-white/80'}`}>{codenameLabel}</span>
+                <span className={`flex-1 ${hasDirective ? 'text-white' : 'text-white/80'}`}>{codenameLabel}</span>
                 <span className={`ml-4 ${connected ? 'text-emerald-300' : 'text-white/50'}`}>{connected ? 'LINK' : 'OFFLINE'}</span>
               </div>
               <div className="mt-3 h-2 rounded-full bg-neutral-800 overflow-hidden">
@@ -1431,8 +1432,8 @@ function ControlPanel() {
             </header>
 
             <div className="flex-1 flex flex-col gap-4 px-5 py-5">
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 px-4 py-5 min-h-[120px] shadow-inner">
-                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-2">Directive</div>
+              <div className={`rounded-2xl border px-4 py-5 min-h-[120px] shadow-inner ${hasDirective ? `border-red-400 bg-red-600/90${eventId ? ' directive-flash' : ''}` : 'border-neutral-800 bg-neutral-950/80'}`}>
+                <div className={`text-[10px] uppercase tracking-[0.4em] mb-2 ${hasDirective ? 'text-white/80' : 'text-white/40'}`}>Directive</div>
                 <div className={`font-mono text-lg leading-relaxed ${hasDirective ? 'text-white' : 'text-white/40 italic'}`}>
                   {directive || 'Awaiting directive…'}
                 </div>
