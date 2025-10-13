@@ -1,0 +1,27 @@
+@import "tailwindcss";
+/* Critical modal red strobe border */
+@keyframes red-strobe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 4px rgba(239, 68, 68, 0.9),
+      inset 0 0 60px rgba(239, 68, 68, 0.6),
+      0 0 30px rgba(239, 68, 68, 0.5);
+    opacity: 1;
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(239, 68, 68, 0.3),
+      inset 0 0 10px rgba(239, 68, 68, 0.2),
+      0 0 5px rgba(239, 68, 68, 0.2);
+    opacity: 0.6;
+  }
+}
+.red-strobe-border {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  border: 3px solid rgba(239, 68, 68, 0.7); /* red-500 */
+  border-radius: 16px;
+  animation: red-strobe 1s infinite;
+  z-index: 120; /* above backdrop, below modal content */
+}

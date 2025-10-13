@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "id": "sector-c-ops-01",
+    "title": "Sector C Stress Test",
+    "durationHintSec": 240,
+    "algoTone": "abrasive",
+    "endBufferSec": 8
+  },
+  "events": [
+    {
+      "id": "evt-034",
+      "t": 34,
+      "type": "alert",
+      "level": "elevated",
+      "title": "Supply Delay Detected",
+      "location": "South Tunnels",
+      "details": "Truck D-17 stalled; agitation risk rising.",
+      "map": { "x": 30, "y": 82 },
+      "requiresAction": true,
+      "responseWindowSec": 20,
+      "allowedActions": ["Dispatch units", "Throttle hits", "Issue PSA"],
+      "correctAction": "Dispatch units",
+      "pointsPossible": 150,
+      "penalties": { "wrong": -125, "late": -50, "noResponse": -75 },
+      "algoCopy": [
+        { "tOffset": 0,  "text": "DISPATCH to South Tunnels. Do not delay." },
+        { "tOffset": 10, "text": "Escalation likely. MOVE—no dithering." }
+      ]
+    },
+    {
+      "id": "evt-092",
+      "t": 92,
+      "type": "critical",
+      "level": "critical",
+      "title": "Breach – Distribution Gate",
+      "location": "Central Rail Concourse",
+      "details": "Barriers breached; stampede risk.",
+      "map": { "x": 61, "y": 21 },
+      "requiresAction": true,
+      "responseWindowSec": 18,
+      "allowedActions": ["Dispatch units", "Throttle hits", "Co-op protocol"],
+      "correctAction": "Co-op protocol",
+      "pointsPossible": 250,
+      "penalties": { "wrong": -200, "late": -75, "noResponse": -100 },
+      "algoCopy": [
+        { "tOffset": 0,  "text": "DISPATCH to Concourse." },
+        { "tOffset": 8,  "text": "PRIORITIZE CO-OP PROTOCOL. Objections irrelevant." },
+        { "tOffset": 14, "text": "HUMAN HARM IMMINENT. EXECUTE NOW." }
+      ]
+    }
+  ]
+}
