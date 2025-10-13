@@ -1874,7 +1874,7 @@ const pushAlert = useCallback((a) => {
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-emerald-400" />
-              <div className="font-semibold tracking-wide">Hunger Crisis Intervention – Ops Dashboard</div>
+              <div className="font-semibold tracking-wide">HCI – Mission Control</div>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">SECTOR C</Badge>
             </div>
             <div className="flex items-center gap-4 text-sm text-white/70">
@@ -1924,7 +1924,7 @@ const pushAlert = useCallback((a) => {
 
         <main className="flex-1 overflow-hidden">
           <div className="h-full w-full max-w-[95rem] mx-auto px-4 py-4">
-            {view === 'ops' ? (
+            {view === 'media' ? (
               <div className="grid h-full min-h-0 grid-cols-[1.5fr_1.2fr_0.9fr] grid-rows-[1fr_1fr] gap-4">
                 <Card className="col-[1/2] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
                   <CardHeader className="pb-3">
@@ -2144,7 +2144,7 @@ const pushAlert = useCallback((a) => {
                   </Card>
                 </div>
               </div>
-            ) : view === 'media' ? (
+            ) : view === 'ops' ? (
               <div className="flex h-full min-h-0 flex-col gap-4">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
                   <SocialTicker />
@@ -2287,7 +2287,7 @@ const pushAlert = useCallback((a) => {
                   </Card>
                 </div>
               </div>
-            ) : view === 'media' ? (
+            ) : view === 'unused' ? (
               <div className="flex h-full min-h-0 flex-col gap-4">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
                   <SocialTicker />
