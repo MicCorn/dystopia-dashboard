@@ -1184,18 +1184,6 @@ function ControlPanel() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 px-4 py-4 shadow-inner">
-                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">Codename</div>
-                {codenameLocked ? (
-                  <div className="mt-3 text-base font-mono tracking-[0.2em] text-white">{codenameLabel}</div>
-                ) : (
-                  <div className="mt-3 text-sm text-white/60">Awaiting codename selection…</div>
-                )}
-                <div className="mt-2 text-[11px] font-mono uppercase tracking-[0.25em] text-white/50">
-                  Active · {codenameLabel}
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-inner text-center">
                   <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">Score</div>
@@ -1227,7 +1215,7 @@ function ControlPanel() {
                         disabled={!eventId || sending}
                         onClick={() => submitChoice(a)}
                         variant="ghost"
-                        className="w-full rounded-full border-0 bg-emerald-500 text-black font-semibold tracking-[0.3em] uppercase py-4 shadow-[0_8px_0_rgba(0,0,0,0.35)] hover:bg-emerald-400 disabled:bg-neutral-700 disabled:text-neutral-400 disabled:shadow-none transition-all"
+                        className="w-full rounded-full !border-0 !bg-emerald-500 text-black font-semibold tracking-[0.3em] uppercase py-4 shadow-[0_8px_0_rgba(0,0,0,0.35)] hover:!bg-emerald-400 disabled:!bg-neutral-700 disabled:!text-neutral-400 disabled:shadow-none transition-all"
                       >
                         {sending && lastSent === a ? 'Sending…' : a}
                       </Button>
@@ -1241,24 +1229,6 @@ function ControlPanel() {
               {import.meta.env.DEV && (
                 <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950/60 px-4 py-3 text-[11px] text-white/50 space-y-2">
                   <div className="uppercase tracking-[0.35em]">Dev</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      disabled={!connected || !sessionId || !eventId || sending}
-                      onClick={() => submitChoice('TEST_ACTION')}
-                      variant="ghost"
-                      className="border border-white/20 text-white/80 px-2 py-2 text-xs rounded-lg"
-                    >
-                      Send Test
-                    </Button>
-                    <Button
-                      disabled={!connected || !sessionId || !eventId || sending}
-                      onClick={() => submitChoice('ACK_DIRECTIVE')}
-                      variant="ghost"
-                      className="border border-white/20 text-white/80 px-2 py-2 text-xs rounded-lg"
-                    >
-                      Ack Directive
-                    </Button>
-                  </div>
                   <div className="font-mono leading-relaxed">
                     <div>POST /api/session/{sessionId || '…'}/input</div>
                     <div>Last: {lastSent || '—'}</div>
@@ -1296,7 +1266,7 @@ function ControlPanel() {
             )}
             <Button
               type="submit"
-              className="mt-5 w-full rounded-2xl bg-emerald-500 text-black font-semibold tracking-[0.2em] uppercase hover:bg-emerald-400"
+              className="mt-5 w-full rounded-2xl !bg-emerald-500 text-black font-semibold tracking-[0.2em] uppercase hover:!bg-emerald-400"
             >
               Lock Codename
             </Button>
