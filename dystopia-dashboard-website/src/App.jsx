@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 const qs = new URLSearchParams(window.location.search);
 const ASSESSMENT_SESSION_ID = qs.get("session");
 const IS_ASSESSMENT_MODE = (qs.get("mode") || "").toLowerCase() === "assessment" && !!ASSESSMENT_SESSION_ID;
+const SESSION_REDIRECT_KEY = "hci-session-redirect";
 // --- WebSocket remote alert constants ---
 const WS_URL = import.meta.env.VITE_ALERT_WS_URL || "ws://localhost:8787";
 const asLevel = (v) => (v || "").toString().toLowerCase();
@@ -124,6 +125,19 @@ function getViewFromHash() {
   if (h.includes("/control")) return "control"; // controller app
   if (h.includes("/leaderboard")) return "leaderboard"; // assessment results
   return "ops"; // default
+}
+
+function hashForView(view) {
+  switch ((view || "").toLowerCase()) {
+    case "media":
+      return "#/media";
+    case "control":
+      return "#/control";
+    case "leaderboard":
+      return "#/leaderboard";
+    default:
+      return "#/ops";
+  }
 }
 
 // Generate synthetic time-series data with real timestamps
@@ -1544,6 +1558,60 @@ function HungerCrisisDashboard() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  const redirectToSession = useCallback((sessionId, nextView) => {
+    if (!sessionId || typeof window === 'undefined') return;
+    const targetView = nextView ?? getViewFromHash();
+    const nextUrl = `${window.location.origin}/?mode=assessment&session=${encodeURIComponent(sessionId)}${hashForView(targetView)}`;
+    if (window.location.href === nextUrl) return;
+    window.location.href = nextUrl;
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onStorage = (event) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key !== SESSION_REDIRECT_KEY || !event.newValue) return;
+      try {
+        const payload = JSON.parse(event.newValue);
+        if (payload?.sessionId) {
+          redirectToSession(payload.sessionId);
+        }
+      } catch (err) {
+        console.error('Invalid session redirect payload', err);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [redirectToSession]);
+  const handleStartNewSession = useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:8787/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenarioId: 'sector-c-ops-01' }),
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to create session (${res.status})`);
+      }
+      const data = await res.json();
+      if (data?.sessionId) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(
+              SESSION_REDIRECT_KEY,
+              JSON.stringify({ sessionId: data.sessionId, ts: Date.now() })
+            );
+          }
+        } catch (storageErr) {
+          console.warn('Unable to broadcast session redirect', storageErr);
+        }
+        redirectToSession(data.sessionId, view);
+      } else {
+        console.error('No sessionId in response', data);
+      }
+    } catch (err) {
+      console.error('Error creating session', err);
+    }
+  }, [redirectToSession, view]);
   const audioCtxRef = useRef(null);
   const [soundOn, setSoundOn] = useState(true);
   const [remoteConnected, setRemoteConnected] = useState(false);
@@ -2308,23 +2376,7 @@ const pushAlert = useCallback((a) => {
                 <a href="#/media" className={`px-2 py-0.5 rounded border ${view === 'media' ? 'bg-white/10 border-white/30 text-white' : 'border-white/10 text-white/60 hover:text-white/80'}`}>MEDIA</a>
               </div>
               <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch('http://localhost:8787/api/session', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ scenarioId: 'sector-c-ops-01' }),
-                    });
-                    const data = await res.json();
-                    if (data.sessionId) {
-                      window.location.href = `${window.location.origin}/?mode=assessment&session=${encodeURIComponent(data.sessionId)}#/ops`;
-                    } else {
-                      console.error('No sessionId in response', data);
-                    }
-                  } catch (err) {
-                    console.error('Error creating session', err);
-                  }
-                }}
+                onClick={handleStartNewSession}
                 className="px-3 py-2 ml-3 rounded-md bg-blue-700 hover:bg-blue-600 text-white text-sm"
               >
                 Start New Session
