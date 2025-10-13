@@ -25,3 +25,16 @@
   animation: red-strobe 1s infinite;
   z-index: 120; /* above backdrop, below modal content */
 }
+
+@keyframes codename-flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.codename-flash {
+  animation: codename-flash 0.9s linear infinite;
+}

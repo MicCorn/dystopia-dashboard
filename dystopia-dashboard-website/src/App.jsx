@@ -86,6 +86,33 @@ function useClock() {
   return t.toLocaleString();
 }
 
+function useIsPortrait() {
+  const getPortrait = () => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+    return window.matchMedia("(orientation: portrait)").matches;
+  };
+
+  const [isPortrait, setIsPortrait] = React.useState(getPortrait);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(orientation: portrait)");
+    const handle = (event) => setIsPortrait(event.matches);
+    setIsPortrait(mq.matches);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", handle);
+      return () => mq.removeEventListener("change", handle);
+    }
+    if (typeof mq.addListener === "function") {
+      mq.addListener(handle);
+      return () => mq.removeListener(handle);
+    }
+    return undefined;
+  }, []);
+
+  return isPortrait;
+}
+
 // ---- Simple hash routing for dual-screen presentation ----
 function getViewFromHash() {
   const h = (window.location.hash || "").toLowerCase();
@@ -976,103 +1003,124 @@ function ControlPanel() {
     setTimeout(() => setSending(false), 400);
   }, [HTTP_BASE, sessionId, eventId, participantId, codename]);
 
-  // timer ring metrics
-  const pct = windowMs > 0 ? Math.max(0, Math.min(1, remainingMs / windowMs)) : 0;
-  const radius = 52, circ = 2 * Math.PI * radius, dash = circ * pct;
+  const isPortrait = useIsPortrait();
+  const timerRatio = windowMs > 0 ? Math.max(0, Math.min(1, remainingMs / windowMs)) : 0;
+  const secondsRemaining = Math.max(0, Math.ceil(remainingMs / 1000));
+  const codenameLabel = (codename || "Awaiting Codename").toUpperCase();
+  const hasDirective = Boolean(directive && directive.trim().length);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-white/80 font-semibold tracking-wide">HCI Controller</div>
-        <div className={`text-xs px-2 py-1 rounded border ${connected ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/60'}`}>
-          {connected ? 'Connected' : 'Offline'}
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
+      {!isPortrait ? (
+        <div className="flex-1 flex items-center justify-center px-6 text-center">
+          <div>
+            <div className="text-lg font-semibold tracking-[0.3em] uppercase text-white/80">Rotate Device</div>
+            <p className="mt-2 text-sm text-white/60">Portrait mode required to operate the controller.</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center px-4 py-6">
+          <div className="w-full max-w-sm sm:max-w-md flex flex-col flex-1 rounded-[32px] border border-neutral-800 bg-neutral-900/80 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.45)] overflow-hidden">
+            <header className={`px-5 py-4 border-b border-neutral-800 ${hasDirective ? 'bg-red-600 text-white' : 'bg-black text-white'}`}>
+              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.35em]">
+                <span className={`flex-1 ${hasDirective ? 'codename-flash text-white' : 'text-white/80'}`}>{codenameLabel}</span>
+                <span className={`ml-4 ${connected ? 'text-emerald-300' : 'text-white/50'}`}>{connected ? 'LINK' : 'OFFLINE'}</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-neutral-800 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-200 ease-linear ${hasDirective ? 'bg-white' : 'bg-cyan-400'}`}
+                  style={{ width: `${Math.round(timerRatio * 100)}%` }}
+                />
+              </div>
+              <div className="mt-2 text-right text-[10px] font-mono tracking-[0.3em] text-white/70">
+                {windowMs > 0 ? `${secondsRemaining}s` : '—'}
+              </div>
+            </header>
 
-      {/* Session + Join */}
-      <div className="text-xs text-white/60 mb-4">
-        Session: <span className="text-white/80">{sessionId || '—'}</span>
-      </div>
+            <div className="flex-1 flex flex-col gap-4 px-5 py-5">
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 px-4 py-5 min-h-[120px] shadow-inner">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-2">Directive</div>
+                <div className={`font-mono text-lg leading-relaxed ${hasDirective ? 'text-white' : 'text-white/40 italic'}`}>
+                  {directive || 'Awaiting directive…'}
+                </div>
+              </div>
 
-      {/* THE ALGORITHM directive */}
-      <Card className="bg-neutral-900 border-white/10 mb-4">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-white/90 text-sm flex items-center gap-2">
-            <Siren className="w-4 h-4"/> THE ALGORITHM
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-white/80 text-base">{directive || 'Awaiting directive…'}</div>
-        </CardContent>
-      </Card>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-inner text-center">
+                  <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">Score</div>
+                  <div className="mt-2 text-3xl font-mono">{Math.round(score)}</div>
+                </div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-inner text-center">
+                  <div className="text-[10px] uppercase tracking-[0.4em] text-white/40">Session</div>
+                  <div className="mt-2 text-xs font-mono truncate">{sessionId || '—'}</div>
+                </div>
+              </div>
 
-      {/* Score + Timer */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        <Card className="bg-neutral-900 border-white/10 col-span-2">
-          <CardHeader className="pb-2"><CardTitle className="text-white/90 text-sm">Score</CardTitle></CardHeader>
-          <CardContent>
-            <div className="h-3 rounded bg-white/10 overflow-hidden">
-              <div className="h-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, score))}%` }} />
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-inner">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-1">Status</div>
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className={connected ? 'text-emerald-300' : 'text-white/60'}>{connected ? 'ONLINE' : 'OFFLINE'}</span>
+                  <span className="text-white/50">{lastSent ? `LAST · ${lastSent}` : 'WAITING'}</span>
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-xs text-white/60">{Math.round(score)} pts</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-neutral-900 border-white/10">
-          <CardHeader className="pb-1"><CardTitle className="text-white/90 text-sm">Timer</CardTitle></CardHeader>
-          <CardContent className="grid place-items-center">
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r={radius} stroke="rgba(255,255,255,0.15)" strokeWidth="10" fill="none" />
-              <circle cx="60" cy="60" r={radius} stroke="#22d3ee" strokeWidth="10" fill="none"
-                      strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-                      transform="rotate(-90 60 60)" />
-              <text x="60" y="64" textAnchor="middle" fill="#fff" fontSize="14">
-                {Math.ceil(remainingMs/1000)}s
-              </text>
-            </svg>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Action buttons */}
-      <Card className="bg-neutral-900 border-white/10">
-        <CardHeader className="pb-2"><CardTitle className="text-white/90 text-sm">Select Action</CardTitle></CardHeader>
-        <CardContent>
-          {actions.length ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {actions.map((a) => (
-                <Button key={a} disabled={!eventId || sending} onClick={() => submitChoice(a)} className="justify-start">
-                  {sending && lastSent === a ? 'Sending…' : a}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-white/60">Waiting for next prompt…</div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="mt-auto px-5 pb-6">
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 px-4 py-4 shadow-inner">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-3">Actions</div>
+                {actions.length ? (
+                  <div className="grid gap-3">
+                    {actions.map((a) => (
+                      <Button
+                        key={a}
+                        disabled={!eventId || sending}
+                        onClick={() => submitChoice(a)}
+                        variant="ghost"
+                        className="w-full rounded-full border-0 bg-emerald-500 text-black font-semibold tracking-[0.3em] uppercase py-4 shadow-[0_8px_0_rgba(0,0,0,0.35)] hover:bg-emerald-400 disabled:bg-neutral-700 disabled:text-neutral-400 disabled:shadow-none transition-all"
+                      >
+                        {sending && lastSent === a ? 'Sending…' : a}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-white/60 font-mono">Waiting for next prompt…</div>
+                )}
+              </div>
 
-      {/* Dev/Test Controls — lets us verify POST /input wiring without a live event */}
-      {import.meta.env.DEV && (
-        <Card className="bg-neutral-900 border-white/10 mt-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white/90 text-sm">Developer Test</CardTitle>
-            <CardDescription className="text-white/50">Quick checks to ensure controller → backend is wired</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button disabled={!connected || !sessionId || !eventId || sending} onClick={() => submitChoice('TEST_ACTION')}>Send Test Action</Button>
-              <Button disabled={!connected || !sessionId || !eventId || sending} onClick={() => submitChoice('ACK_DIRECTIVE')}>Acknowledge Directive</Button>
+              {import.meta.env.DEV && (
+                <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950/60 px-4 py-3 text-[11px] text-white/50 space-y-2">
+                  <div className="uppercase tracking-[0.35em]">Dev</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      disabled={!connected || !sessionId || !eventId || sending}
+                      onClick={() => submitChoice('TEST_ACTION')}
+                      variant="ghost"
+                      className="border border-white/20 text-white/80 px-2 py-2 text-xs rounded-lg"
+                    >
+                      Send Test
+                    </Button>
+                    <Button
+                      disabled={!connected || !sessionId || !eventId || sending}
+                      onClick={() => submitChoice('ACK_DIRECTIVE')}
+                      variant="ghost"
+                      className="border border-white/20 text-white/80 px-2 py-2 text-xs rounded-lg"
+                    >
+                      Ack Directive
+                    </Button>
+                  </div>
+                  <div className="font-mono leading-relaxed">
+                    <div>POST /api/session/{sessionId || '…'}/input</div>
+                    <div>Last: {lastSent || '—'}</div>
+                    <div>HTTP: {HTTP_BASE || '—'}</div>
+                  </div>
+                  {!eventId && (
+                    <div className="text-amber-300/80">No active event window.</div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="text-xs text-white/50 mt-2 space-y-1">
-              <div>POST → /api/session/{sessionId || '…'}/input · last sent: {lastSent || '—'}</div>
-              <div>HTTP_BASE: {HTTP_BASE || '—'}</div>
-            </div>
-            {!eventId && (
-              <div className="text-[11px] text-amber-300/80 mt-1">No active event window — the backend must send `event_open` before inputs are accepted.</div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );
