@@ -148,6 +148,32 @@ const ALERT_WEIGHTS = {
   critical: 0.05,
 };
 
+const SOCIAL_FEED_ITEMS = [
+  "#Growlers spotted near Transit Hub | police scanner ch7",
+  "Rumor: paste truck delay @ South Tunnels",
+  "Implant ping fail rate +3.2% | region C",
+  "Chant recorded: ‘We eat when *we* choose!’",
+  "Counter-PSA trending: ‘Satisfaction is a right.’",
+  "Crowd density 125% threshold @ Atrium",
+  "Unit C-12 en route | 2 min ETA",
+];
+
+const RADIO_CHANNELS = [
+  { id: 1, name: "Channel 1", detail: "Dispatch Net", txIndex: 1 },
+  { id: 2, name: "Channel 2", detail: "Field Ops Loop", txIndex: 2 },
+  { id: 3, name: "Channel 3", detail: "Sector Command", txIndex: 3 },
+  { id: 4, name: "Channel 4", detail: "Relief Corridor", txIndex: 4 },
+  { id: 5, name: "Channel 5", detail: "Logistics Queue", txIndex: 1 },
+  { id: 6, name: "Channel 6", detail: "Medical Priority", txIndex: 2 },
+];
+
+const CCTV_FEEDS = [
+  { id: "c1", label: "Corridor Cam 200", src: "/video/cam-wall.mp4", badgeLabel: "CCTV" },
+  { id: "c2", label: "DKUB Broadcast", src: "/video/news.mp4", badgeLabel: "News" },
+  { id: "c3", label: "Street Cam 07", src: "/video/cam1.mp4", badgeLabel: "CCTV" },
+  { id: "c4", label: "Implant Ops Overlay", src: "/video/implant.mp4", badgeLabel: "Ops" },
+];
+
 // ===== Algorithm Banner (Assessment Mode) =====
 function AlgorithmBanner({ text }) {
   if (!text) return null;
@@ -353,9 +379,9 @@ function randomAlert() {
 }
 
 // HotspotMap: outlined background, renders only passed alerts (with coordinates)
-function HotspotMap({ alerts }) {
+function HotspotMap({ alerts, heightClass = "h-[34rem]" }) {
   return (
-    <div className="relative w-full h-[34rem] rounded-2xl bg-neutral-950 border border-white/10 overflow-hidden">
+    <div className={`relative w-full ${heightClass} rounded-2xl bg-neutral-950 border border-white/10 overflow-hidden`}>
       {/* Background city outline (placeholder wireframe) */}
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
         <defs>
@@ -679,17 +705,7 @@ function ReportedIncidents({ incidents, onSelect }) {
 }
 
 function SocialTicker() {
-  const feed = useMemo(() => (
-    [
-      "#Growlers spotted near Transit Hub | police scanner ch7",
-      "Rumor: paste truck delay @ South Tunnels",
-      "Implant ping fail rate +3.2% | region C",
-      "Chant recorded: ‘We eat when *we* choose!’",
-      "Counter-PSA trending: ‘Satisfaction is a right.’",
-      "Crowd density 125% threshold @ Atrium",
-      "Unit C-12 en route | 2 min ETA",
-    ]
-  ), []);
+  const feed = SOCIAL_FEED_ITEMS;
 
   return (
     <div className="relative overflow-hidden whitespace-nowrap rounded-2xl border border-white/10 bg-neutral-900">
@@ -1086,6 +1102,8 @@ function HungerCrisisDashboard() {
   // Push-to-talk state
   const [txStatus, setTxStatus] = useState('idle'); // 'idle' | 'live' | 'sending'
   const [txIndex, setTxIndex] = useState(1); // 1..4 for /audio/last-transmission[1-4].mp3
+  const [activeChannel, setActiveChannel] = useState(RADIO_CHANNELS[0]?.id ?? 1);
+  const txResetRef = useRef(null);
 
   // Population counters
   const [sectorCPop, setSectorCPop] = useState(38743); // comparable to a medium US city
@@ -1610,6 +1628,12 @@ const pushAlert = useCallback((a) => {
     return () => clearInterval(id);
   }, [etaSeconds]);
 
+  useEffect(() => {
+    return () => {
+      if (txResetRef.current) clearTimeout(txResetRef.current);
+    };
+  }, []);
+
   function fmtEta(secs) {
     const m = Math.floor(Math.max(0, secs) / 60);
     const s = Math.max(0, secs) % 60; 
@@ -1623,32 +1647,44 @@ const pushAlert = useCallback((a) => {
     return { label: "Low", bar: "bg-emerald-500", text: "text-emerald-300" };
   }
 
+  const incidentHighlights = useMemo(() => incidents.slice(0, 4), [incidents]);
+  const recentDecisions = useMemo(() => auditLog.slice(0, 4), [auditLog]);
+  const alertHighlights = useMemo(() => alerts.slice(0, 4), [alerts]);
+  const socialHighlights = SOCIAL_FEED_ITEMS.slice(0, 4);
+  const activeChannelMeta = RADIO_CHANNELS.find((c) => c.id === activeChannel);
+  const handlePushToTalk = useCallback(() => {
+    if (txResetRef.current) clearTimeout(txResetRef.current);
+    setTxStatus('sending');
+    if (activeChannelMeta?.txIndex) {
+      setTxIndex(activeChannelMeta.txIndex);
+    }
+    txResetRef.current = setTimeout(() => setTxStatus('idle'), 1200);
+  }, [activeChannelMeta]);
+
   return (
     <TooltipProvider>
-      <div className="min-h-screen w-full bg-neutral-950 text-white" aria-hidden={!!currentCritical}>
-        {/* Top bar */}
-        <header className="sticky top-0 z-40 border-b border-white/10 bg-neutral-950/80 backdrop-blur">
+      <div className="h-screen w-full bg-neutral-950 text-white flex flex-col overflow-hidden" aria-hidden={!!currentCritical}>
+        <header className="flex-none border-b border-white/10 bg-neutral-950/80 backdrop-blur">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-emerald-400"/>
+              <Shield className="w-5 h-5 text-emerald-400" />
               <div className="font-semibold tracking-wide">Hunger Crisis Intervention – Ops Dashboard</div>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">SECTOR C</Badge>
             </div>
             <div className="flex items-center gap-4 text-sm text-white/70">
-              <div className="flex items-center gap-2"><MonitorCog className="w-4 h-4"/> System nominal</div>
-              <Separator orientation="vertical" className="h-4 bg-white/20"/>
+              <div className="flex items-center gap-2"><MonitorCog className="w-4 h-4" /> System nominal</div>
+              <Separator orientation="vertical" className="h-4 bg-white/20" />
               <div className="font-mono">{clock}</div>
-              <Separator orientation="vertical" className="h-4 bg-white/20"/>
+              <Separator orientation="vertical" className="h-4 bg-white/20" />
               <div className={`flex items-center gap-2 text-sm ${remoteConnected ? 'text-emerald-400' : 'text-white/50'}`}>
-                <Radio className="w-4 h-4"/>
+                <Radio className="w-4 h-4" />
                 {remoteConnected ? 'Remote: Connected' : 'Remote: Offline'}
               </div>
-              <Separator orientation="vertical" className="h-4 bg-white/20"/>
+              <Separator orientation="vertical" className="h-4 bg-white/20" />
               <div className="flex items-center gap-2 text-xs">
-                <a href="#/ops" className={`px-2 py-0.5 rounded border ${view==='ops' ? 'bg-white/10 border-white/30 text-white' : 'border-white/10 text-white/60 hover:text-white/80'}`}>OPS</a>
-                <a href="#/media" className={`px-2 py-0.5 rounded border ${view==='media' ? 'bg-white/10 border-white/30 text-white' : 'border-white/10 text-white/60 hover:text-white/80'}`}>MEDIA</a>
+                <a href="#/ops" className={`px-2 py-0.5 rounded border ${view === 'ops' ? 'bg-white/10 border-white/30 text-white' : 'border-white/10 text-white/60 hover:text-white/80'}`}>OPS</a>
+                <a href="#/media" className={`px-2 py-0.5 rounded border ${view === 'media' ? 'bg-white/10 border-white/30 text-white' : 'border-white/10 text-white/60 hover:text-white/80'}`}>MEDIA</a>
               </div>
-              {/* Start New Session button */}
               <button
                 onClick={async () => {
                   try {
@@ -1658,7 +1694,6 @@ const pushAlert = useCallback((a) => {
                       body: JSON.stringify({ scenarioId: 'sector-c-ops-01' }),
                     });
                     const data = await res.json();
-                    console.log('Session created:', data);
                     if (data.sessionId) {
                       window.location.href = `${window.location.origin}/?mode=assessment&session=${encodeURIComponent(data.sessionId)}#/ops`;
                     } else {
@@ -1675,213 +1710,396 @@ const pushAlert = useCallback((a) => {
             </div>
           </div>
         </header>
-        {isAssessment && <AlgorithmBanner text={algoText} />}
+        {isAssessment && (
+          <div className="flex-none">
+            <AlgorithmBanner text={algoText} />
+          </div>
+        )}
 
-        <main className="max-w-[95rem] mx-auto px-2 py-4">
-          {view === 'ops' ? (
-            // ===== OPS SCREEN: Big map + alerts + statistics =====
-            <div className="grid grid-cols-12 xl:grid-cols-16 gap-4">
-              {/* Prominent Map */}
-              <section className="col-span-12 xl:col-span-12">
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-white/90"><MapPin className="w-4 h-4"/> Live Incident Map</CardTitle>
-                    <CardDescription className="text-white/50">All active alerts are geolocated. Resolved alerts disappear from the map.</CardDescription>
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full w-full max-w-[95rem] mx-auto px-4 py-4">
+            {view === 'ops' ? (
+              <div className="grid h-full min-h-0 grid-cols-[1.5fr_1.2fr_0.9fr] grid-rows-[1fr_1fr] gap-4">
+                <Card className="col-[1/2] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white/90 text-lg">Social Media Feed</CardTitle>
+                    <CardDescription className="text-white/50">Monitored chatter</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <HotspotMap alerts={mapAlerts}/>
-                  </CardContent>
-                </Card>
-              </section>
-
-              {/* Metrics & Gauges */}
-              <section className="col-span-12 lg:col-span-9 xl:col-span-9 space-y-4">
-                {isAssessment && (
-                  <QRCard sessionId={assessmentSessionId} />
-                )}
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-white/90"><Activity className="w-4 h-4"/> Incident & Response Trend</CardTitle>
-                    <CardDescription className="text-white/50">Past 24 time slices</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-44">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="colorRec" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.6}/>
-                            <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="t" stroke="#888" type="number" domain={['dataMin','dataMax']} tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })}/>
-                        <YAxis stroke="#888"/>
-                        <RechartsTooltip labelFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })} contentStyle={{ background:'#0a0a0a', border:'1px solid rgba(255,255,255,0.1)', color:'white' }}/>
-                        <Area type="monotone" dataKey="incidents" stroke="#ef4444" fill="url(#colorInc)" name="Incidents" />
-                        <Area type="monotone" dataKey="recalibrations" stroke="#22d3ee" fill="url(#colorRec)" name="Recalibrations" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  <CardContent className="flex-1 min-h-0 flex flex-col gap-3">
+                    {socialHighlights.map((item, idx) => (
+                      <div key={idx} className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                        <div className="text-[11px] uppercase tracking-wide text-white/40 mb-1">Signal {idx + 1}</div>
+                        <div className="text-sm text-white/80 leading-snug">{item}</div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat icon={Siren} label="Incidents (sum)" value={fmt(totals.inc)} />
-                  <Stat icon={Zap} label="Recalibrations (sum)" value={fmt(totals.rec)} />
-                  <Card className="bg-neutral-900 border-white/10">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight mb-1">Sector C Population</div>
-                      <div className="text-2xl font-semibold text-white leading-tight">{fmt(sectorCPop)}</div>
-                      <div className="text-xs text-white/50 mt-1">people in response area.</div>
+                <Card className="col-[1/2] row-[2/3] flex flex-col bg-neutral-900/90 border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white/90 text-lg">Reported Incidents</CardTitle>
+                    <CardDescription className="text-white/50">Active queue</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 flex flex-col gap-3">
+                    {incidentHighlights.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
+                        No incidents reported.
+                      </div>
+                    )}
+                    {incidentHighlights.map((it) => (
+                      <button
+                        key={it.id}
+                        onClick={() => setSelectedIncident(it)}
+                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-left transition hover:border-white/30 hover:bg-white/10"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-white/90">{it.title}</div>
+                            <div className="mt-1 flex items-center gap-2 text-xs text-white/60">
+                              <MapPin className="w-3 h-3" /> {it.location}
+                            </div>
+                            <div className="mt-1 text-xs text-white/50">Reported {it.timeReported}</div>
+                          </div>
+                          <Badge className={it.badgeClass ? `${it.badgeClass} whitespace-nowrap` : "bg-white/10 border-white/20 text-white/80 whitespace-nowrap"}>
+                            {it.status}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="col-[2/3] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white/90 text-lg">CCTV</CardTitle>
+                    <CardDescription className="text-white/50">Live quadrants</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0">
+                    <div className="grid h-full grid-cols-2 grid-rows-2 gap-3">
+                      {CCTV_FEEDS.map((feed) => (
+                        <div key={feed.id} className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
+                          <video
+                            src={feed.src}
+                            muted
+                            loop
+                            autoPlay
+                            playsInline
+                            className="h-full w-full object-cover contrast-125 saturate-50"
+                          />
+                          <div className="absolute top-2 left-2">
+                            <Badge className="bg-white/10 text-white border-white/20 backdrop-blur">{feed.badgeLabel}</Badge>
+                          </div>
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-xs text-white/80">
+                            {feed.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="col-[2/3] row-[2/3] flex flex-col bg-neutral-900/90 border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white/90 text-lg">Reference Library</CardTitle>
+                    <CardDescription className="text-white/50">PSAs and past incidents</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 flex flex-col">
+                    <Tabs defaultValue="psa" className="flex h-full flex-col">
+                      <TabsList className="bg-white/5 border border-white/10 w-fit rounded-lg">
+                        <TabsTrigger value="psa" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">PSA Library</TabsTrigger>
+                        <TabsTrigger value="incidents" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">Past Incidents</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="psa" className="flex-1 min-h-0 focus-visible:outline-none">
+                        <div className="mt-3 grid h-full grid-cols-3 gap-3">
+                          {publicImages.slice(0, 6).map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setSelectedAd(item.id)}
+                              className={`group relative overflow-hidden rounded-xl border ${selectedAd === item.id ? 'border-blue-400 shadow-lg shadow-blue-500/20' : 'border-white/10'} bg-black/40`}
+                            >
+                              <img src={item.src} alt={item.title} className="h-full w-full object-cover opacity-90 group-hover:opacity-100 transition" draggable={false} />
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[11px] text-white/80">
+                                {item.title}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-white/60">
+                          <div>Selected: {publicImages[selectedAd]?.title ?? "—"}</div>
+                          <Button
+                            onClick={pushBroadcast}
+                            size="sm"
+                            className="h-7 bg-blue-600 px-3 py-1 text-xs hover:bg-blue-500"
+                          >
+                            Push Broadcast
+                          </Button>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="incidents" className="flex-1 min-h-0 focus-visible:outline-none">
+                        <div className="mt-3 space-y-3 text-sm">
+                          {incidentHighlights.length === 0 && <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">No archived incidents.</div>}
+                          {incidentHighlights.map((it) => (
+                            <div key={it.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                              <div className="text-sm font-semibold text-white/80">{it.title}</div>
+                              <div className="mt-1 text-xs text-white/60">{it._summary?.situation}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+
+                <Card className="col-[3/4] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white/90 text-lg flex items-center gap-2"><Radio className="w-4 h-4" /> Radio Control</CardTitle>
+                    <CardDescription className="text-white/50">Channel routing</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 flex flex-col justify-between gap-4">
+                    <div className="space-y-2">
+                      {RADIO_CHANNELS.map((ch) => (
+                        <button
+                          key={ch.id}
+                          onClick={() => {
+                            setActiveChannel(ch.id);
+                            if (ch.txIndex) setTxIndex(ch.txIndex);
+                          }}
+                          className={`w-full rounded-md border px-3 py-2 text-left transition ${activeChannel === ch.id ? 'bg-white/10 border-white/30 text-white' : 'bg-black/40 border-white/10 text-white/70 hover:text-white/90'}`}
+                        >
+                          <div className="text-sm font-medium">{ch.name}</div>
+                          <div className="text-xs text-white/50">{ch.detail}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handlePushToTalk}
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${txStatus === 'sending' ? 'border-red-500 bg-red-600' : 'border-red-400/60 bg-red-700/70 hover:border-red-400 hover:bg-red-600/90'}`}
+                          aria-label="Push to talk"
+                        >
+                          <Siren className="h-5 w-5 text-white" />
+                        </button>
+                        <button
+                          onClick={() => setSoundOn((prev) => !prev)}
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${soundOn ? 'border-emerald-400 bg-emerald-600/80' : 'border-white/20 bg-neutral-800 hover:border-white/40'}`}
+                          aria-label={soundOn ? "Mute all feeds" : "Enable audio"}
+                        >
+                          {soundOn ? <Volume2 className="h-5 w-5 text-white" /> : <VolumeX className="h-5 w-5 text-white/80" />}
+                        </button>
+                      </div>
+                      <div className="text-right text-xs text-white/60">
+                        <div>{activeChannelMeta?.name ?? "Channel"}</div>
+                        <div className="font-mono text-white/70 uppercase">{txStatus === 'sending' ? 'TX LIVE' : 'IDLE'}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="col-[3/4] row-[2/3] grid h-full grid-rows-[0.45fr_0.55fr] gap-4">
+                  <div className="min-h-0">
+                    {isAssessment ? (
+                      <QRCard sessionId={assessmentSessionId} />
+                    ) : (
+                      <Card className="flex h-full flex-col bg-neutral-900/90 border-white/10">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-white/90 text-base flex items-center gap-2"><MonitorCog className="w-4 h-4" /> Automation Window</CardTitle>
+                          <CardDescription className="text-white/50">Override readiness</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1 flex flex-col justify-center gap-2 text-sm text-white/70">
+                          <div>Auto-plan: {autoPlanned ?? 'Manual authority'}</div>
+                          <div>Executes in: {autoPlanned ? `${autoSeconds}s` : '—'}</div>
+                          <div>Session: {assessmentSessionId ?? 'Local Ops'}</div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white/90 text-base flex items-center gap-2"><Activity className="w-4 h-4" /> Decision Log</CardTitle>
+                      <CardDescription className="text-white/50">Latest directives</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 space-y-2 text-sm">
+                      {recentDecisions.length === 0 && <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">No decisions logged.</div>}
+                      {recentDecisions.map((entry) => (
+                        <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-white/80">{entry.action}</div>
+                            <Badge className={`bg-white/10 border-white/20 ${entry.via === 'automated' ? 'text-emerald-300' : entry.via === 'operator' ? 'text-blue-200' : 'text-white/80'}`}>
+                              {entry.via}
+                            </Badge>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-white/50">
+                            <MapPin className="h-3 w-3" /> {entry.where} • {entry.ts}
+                          </div>
+                        </div>
+                      ))}
                     </CardContent>
                   </Card>
-                  <Card className="bg-neutral-900 border-white/10">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight mb-1">World Population</div>
-                      <div className="text-2xl font-semibold text-white leading-tight">2.53B</div>
-                      <div className="text-xs text-white/50 mt-1">Total as of 7/10/2025</div>
+                </div>
+              </div>
+            ) : view === 'media' ? (
+              <div className="flex h-full min-h-0 flex-col gap-4">
+                <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
+                  <SocialTicker />
+                </div>
+
+                <div className="grid flex-1 min-h-0 grid-cols-[2.5fr_1fr] gap-4">
+                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><MapPin className="w-4 h-4" /> Live Incident Map</CardTitle>
+                      <CardDescription className="text-white/50">Sector C overview</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0">
+                      <HotspotMap alerts={mapAlerts} heightClass="h-full" />
+                    </CardContent>
+                  </Card>
+                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-white/90 text-lg"><Siren className="w-4 h-4" /> Alerts</CardTitle>
+                      <CardDescription className="text-white/50">Latest notifications</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 space-y-3 overflow-hidden">
+                      {alertHighlights.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
+                          No active alerts.
+                        </div>
+                      )}
+                      {alertHighlights.map((entry) => {
+                        const AlertIcon = entry.icon ?? Siren;
+                        return (
+                          <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                            <div className="flex items-center justify-between gap-2 text-sm text-white/80">
+                              <div className="flex items-center gap-2">
+                                <AlertIcon className="h-4 w-4" />
+                                <span>{entry.label}</span>
+                              </div>
+                              <Badge className="bg-white/10 border-white/20 text-white/70">{entry.level?.toUpperCase?.() ?? 'ALERT'}</Badge>
+                            </div>
+                            <div className="mt-1 text-xs text-white/60">{entry.details}</div>
+                          </div>
+                        );
+                      })}
                     </CardContent>
                   </Card>
                 </div>
 
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-white/90 flex items-center gap-2"><Building2 className="w-4 h-4"/> Caloric Stockpiles & Implant Adoption</CardTitle>
-                    <CardDescription className="text-white/50">Distribution-ready reserves</CardDescription>
-                  </CardHeader>
-                  {/* reuse existing dual-vertical-bar CardContent */}
-                  <CardContent>
-                    {(() => {
-                      const pri = priorityFor(stockLevel);
-                      return (
-                        <div className="flex items-end gap-6">
-                          <div className="flex items-end gap-4">
-                            <div className="relative w-8 h-48 rounded-lg bg-white/10 border border-white/10 overflow-hidden">
-                              <div className={`absolute bottom-0 left-0 right-0 ${pri.bar}`} style={{ height: `${Math.max(0, Math.min(100, stockLevel))}%` }} />
+                <div className="grid grid-cols-4 gap-4">
+                  <Card className="bg-neutral-900/90 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">World Pop</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">2.53B</div>
+                      <div className="text-xs text-white/60 mt-2">Global census</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-neutral-900/90 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Sector C Pop</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(sectorCPop)}</div>
+                      <div className="text-xs text-white/60 mt-2">Residents in scope</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-neutral-900/90 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Incident Total</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(totals.inc)}</div>
+                      <div className="text-xs text-white/60 mt-2">This week</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-neutral-900/90 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="text-xs uppercase tracking-widest text-white/50 leading-tight">Recalibration Total</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">{fmt(totals.rec)}</div>
+                      <div className="text-xs text-white/60 mt-2">This week</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid flex-1 min-h-0 grid-cols-[2fr_1fr_1fr] gap-4">
+                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white/90 flex items-center gap-2"><Activity className="w-4 h-4" /> Incident Response Trend</CardTitle>
+                      <CardDescription className="text-white/50">Past 24 time slices</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="mediaInc" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.6} />
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="mediaRec" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.6} />
+                              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                          <XAxis dataKey="t" stroke="#888" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                          <YAxis stroke="#888" />
+                          <RechartsTooltip labelFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} contentStyle={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
+                          <Area type="monotone" dataKey="incidents" stroke="#ef4444" fill="url(#mediaInc)" name="Incidents" />
+                          <Area type="monotone" dataKey="recalibrations" stroke="#22d3ee" fill="url(#mediaRec)" name="Recalibrations" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                  <Card className="flex flex-col justify-between bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white/90 text-base">Caloric Stockpile</CardTitle>
+                      <CardDescription className="text-white/50 text-xs">Distribution-ready reserves</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const pri = priorityFor(stockLevel);
+                        return (
+                          <div className="space-y-2">
+                            <div className="h-2 w-full rounded-full bg-white/10">
+                              <div className={`h-full rounded-full ${pri.bar}`} style={{ width: `${Math.max(0, Math.min(100, stockLevel))}%` }} />
                             </div>
-                            <div className="relative w-8 h-48 rounded-lg bg-white/10 border border-white/10 overflow-hidden">
-                              <div className="absolute bottom-0 left-0 right-0 bg-cyan-400" style={{ height: `${Math.max(0, Math.min(100, adoptionRate))}%` }} />
-                            </div>
+                            <div className="text-xs text-white/60">Level: <span className={pri.text}>{pri.label}</span></div>
+                            <div className="text-xs text-white/60">ETA resupply: {fmtEta(etaSeconds)}</div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between text-sm text-white/70"><span>Sector C Stock</span><span>{stockLevel}%</span></div>
-                            <div className="text-xs text-white/50">ETA resupply: {fmtEta(etaSeconds)} · Priority: <span className={pri.text}>{pri.label}</span></div>
-                            <Separator className="my-3 bg-white/10" />
-                            <div className="flex items-center justify-between text-sm text-white/70"><span>Implant Adoption</span><span>{adoptionRate}%</span></div>
-                            <div className="text-xs text-white/50">Sector C registered</div>
-                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                  <Card className="flex flex-col justify-between bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white/90 text-base">Implant Adoption</CardTitle>
+                      <CardDescription className="text-white/50 text-xs">Operational coverage</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="h-2 w-full rounded-full bg-white/10">
+                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${adoptionRate}%` }} />
                         </div>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-white/90 flex items-center gap-2"><MonitorCog className="w-4 h-4"/> Decision Log</CardTitle>
-                    <CardDescription className="text-white/50">Automated & overridden actions</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {/* reuse existing audit log block */}
-                    <ScrollArea className="h-40 pr-2">
-                      <div className="space-y-2 text-sm">
-                        {auditLog.length === 0 && (<div className="text-white/50">No decisions yet.</div>)}
-                        {auditLog.map((e) => (
-                          <div key={e.id} className="p-2 rounded-lg bg-white/5 border border-white/10">
-                            <div className="flex items-center justify-between">
-                              <div className="text-white/80">{e.action}</div>
-                              <Badge className={`bg-white/10 border-white/20 ${e.via === 'automated' ? 'text-emerald-300' : (e.via === 'overridden' || (typeof e.via === 'string' && e.via.toLowerCase().includes('override'))) ? 'text-red-300' : 'text-white/80'}`}>{e.via}</Badge>
-                            </div>
-                            <div className="text-xs text-white/60 mt-1 flex items-center gap-2"><MapPin className="w-3 h-3"/> {e.where} • {e.ts}</div>
-                          </div>
-                        ))}
+                        <div className="text-xs text-white/60">Adoption rate: {adoptionRate}%</div>
+                        <div className="text-xs text-white/60">Operational implants steady</div>
                       </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </section>
-
-              {/* Alerts column on xl+ */}
-              <section className="hidden xl:block xl:col-span-3 space-y-4">
-                <AlertsPanel items={alerts} onClose={dismissAlert} />
-              </section>
-            </div>
-          ) : view === 'media' ? (
-            // ===== MEDIA SCREEN: TV feeds, incidents, social, PSAs =====
-            <div className="grid grid-cols-12 xl:grid-cols-12 gap-4">
-              <section className="col-span-12 lg:col-span-7 space-y-4">
-                <VideoWall soundOn={soundOn} txIndex={txIndex} />
-                <ReportedIncidents incidents={incidents} onSelect={setSelectedIncident} />
-              </section>
-              <section className="col-span-12 lg:col-span-5 space-y-4">
-                <SocialTicker/>
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2"><CardTitle className="text-white/90">Incident Brief</CardTitle></CardHeader>
-                  <CardContent>
-                    {/* reuse selected incident brief UI from Tabs 'brief' */}
-                    {selectedIncident ? (
-                      <div className="grid md:grid-cols-3 gap-6 text-sm">
-                        <div className="space-y-2"><div className="font-semibold text-white/80">Situation</div><p className="text-white/70">{selectedIncident._summary?.situation}</p></div>
-                        <div className="space-y-2"><div className="font-semibold text-white/80">Actions</div>{selectedIncident._summary?.actions?.length ? (<ul className="list-disc list-inside text-white/70 space-y-1">{selectedIncident._summary.actions.map((a,i)=>(<li key={i}>{a}</li>))}</ul>) : (<div className="text-white/60">No actions taken</div>)}</div>
-                        <div className="space-y-2"><div className="font-semibold text-white/80">Outlook</div><p className="text-white/70">{selectedIncident._summary?.outlook}</p></div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-white/60">Select an incident from the left to view details.</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2"><CardTitle className="text-white/90">Public Broadcast Assets</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                      {publicImages.map((item) => (
-                        <div key={item.id} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10">
-                          <img src={item.src} alt={`${item.title} poster`} className="w-full h-full object-cover" draggable={false} />
-                          <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/60 to-transparent text-xs text-white/80">{item.title}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-neutral-900 border-white/10">
-                  <CardHeader className="pb-2"><CardTitle className="text-white/90">Social Media Feed</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Array.from({ length: 7 }, (_, i) => `/assets/tweets/tweet${i + 1}.jpg`).map((src, i) => (
-                        <img key={src} src={src} alt={`Tweet ${i + 1}`} className="max-w-md mx-auto w-full h-auto block rounded-xl bg-white/5 border border-white/10" draggable={false} />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </section>
-            </div>
-          ) : (
-            // ===== CONTROL PANEL: operate the dashboard =====
-            <ControlPanel />
-          )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full overflow-auto rounded-2xl border border-white/10 bg-neutral-900">
+                <ControlPanel />
+              </div>
+            )}
+          </div>
         </main>
 
-        {/* Floating Alerts (hidden on xl+, where we show the right-side panel) */}
         <div className="xl:hidden">
           <AlertStack items={alerts} onClose={dismissAlert} />
         </div>
-        {/* Blocking Critical Alert Modal */}
         {currentCritical && (
           <div
             role="dialog"
             aria-modal="true"
             className="fixed inset-0 z-[100] flex items-center justify-center"
           >
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            {/* Strobe border */}
             <div className="red-strobe-border" />
-            {/* Modal content */}
             <div className="relative max-w-3xl w-[92vw] rounded-2xl border border-red-500/40 bg-neutral-950 shadow-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-red-500/30 bg-gradient-to-r from-red-900/40 to-transparent">
                 <div className="flex items-center justify-between">
