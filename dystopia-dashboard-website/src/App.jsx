@@ -2334,7 +2334,7 @@ const pushAlert = useCallback((a) => {
     return { label: "Low", bar: "bg-emerald-500", text: "text-emerald-300" };
   }
 
-  const incidentHighlights = useMemo(() => incidents.slice(0, 4), [incidents]);
+  const incidentHighlights = useMemo(() => incidents.slice(0, 2), [incidents]);
   const recentDecisions = useMemo(() => auditLog.slice(0, 4), [auditLog]);
   const alertHighlights = useMemo(() => alerts.slice(0, 5), [alerts]);
   const socialTweetImages = useMemo(
