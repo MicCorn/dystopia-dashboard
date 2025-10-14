@@ -2039,14 +2039,14 @@ const pushAlert = useCallback((a) => {
   } else {
     setAlerts((prev) => {
       const next = [a, ...prev];
-      const overflow = next.slice(4); // anything beyond the visible stack
+      const overflow = next.slice(5); // anything beyond the visible stack
       // Convert any dropped critical alerts into incidents
       overflow.forEach((old) => {
         if (old && old.level === 'critical') {
           addIncidentFromAlert(old);
         }
       });
-      return next.slice(0, 4);
+      return next.slice(0, 5);
     });
   }
 
@@ -2336,8 +2336,11 @@ const pushAlert = useCallback((a) => {
 
   const incidentHighlights = useMemo(() => incidents.slice(0, 4), [incidents]);
   const recentDecisions = useMemo(() => auditLog.slice(0, 4), [auditLog]);
-  const alertHighlights = useMemo(() => alerts.slice(0, 4), [alerts]);
-  const socialHighlights = SOCIAL_FEED_ITEMS.slice(0, 4);
+  const alertHighlights = useMemo(() => alerts.slice(0, 5), [alerts]);
+  const socialTweetImages = useMemo(
+    () => Array.from({ length: 7 }, (_, idx) => `/assets/tweets/tweet${idx + 1}.jpg`),
+    []
+  );
   const activeChannelMeta = RADIO_CHANNELS.find((c) => c.id === activeChannel);
   const handlePushToTalk = useCallback(() => {
     if (txResetRef.current) clearTimeout(txResetRef.current);
@@ -2395,18 +2398,33 @@ const pushAlert = useCallback((a) => {
           <div className="h-full w-full max-w-[95rem] mx-auto px-4 py-4">
             {view === 'media' ? (
               <div className="grid h-full min-h-0 grid-cols-[1.5fr_1.2fr_0.9fr] grid-rows-[1fr_1fr] gap-4">
-                <Card className="col-[1/2] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
+                <Card className="col-[1/2] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10 overflow-hidden">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-white/90 text-lg">Social Media Feed</CardTitle>
-                    <CardDescription className="text-white/50">Monitored chatter</CardDescription>
+                    <CardDescription className="text-white/50">Monitored social feeds</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-1 min-h-0 flex flex-col gap-3">
-                    {socialHighlights.map((item, idx) => (
-                      <div key={idx} className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-3">
-                        <div className="text-[11px] uppercase tracking-wide text-white/40 mb-1">Signal {idx + 1}</div>
-                        <div className="text-sm text-white/80 leading-snug">{item}</div>
+                  <CardContent className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollArea className="h-full max-h-[32rem] pr-2">
+                      <div className="flex flex-col gap-3">
+                        {socialTweetImages.map((src, idx) => (
+                          <div
+                            key={src}
+                            className="rounded-xl border border-white/10 bg-black/40 px-3 pt-3 pb-2"
+                          >
+                            <div className="text-[11px] uppercase tracking-wide text-white/40 mb-2">
+                              Signal {idx + 1}
+                            </div>
+                            <div className="overflow-hidden rounded-lg border border-white/10 bg-black">
+                              <img
+                                src={src}
+                                alt={`Captured tweet ${idx + 1}`}
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </ScrollArea>
                   </CardContent>
                 </Card>
 
