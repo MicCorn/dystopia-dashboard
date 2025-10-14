@@ -2012,6 +2012,7 @@ function HungerCrisisDashboard() {
   }, [redirectToSession, view]);
   const audioCtxRef = useRef(null);
   const [soundOn, setSoundOn] = useState(true);
+  const soundOnRef = useRef(soundOn);
   const [remoteConnected, setRemoteConnected] = useState(false);
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
@@ -2035,7 +2036,11 @@ function HungerCrisisDashboard() {
   const [tweetGallery, setTweetGallery] = useState(null);
   const [radioChannels, setRadioChannels] = useState(() => RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) })));
   const radioAudioRefs = useRef(new Map());
+  const lastRadioKeyRef = useRef(null);
   const series = isAssessment ? (assessmentSeries ?? localSeries) : localSeries;
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
 
   // Push-to-talk state
   const [txStatus, setTxStatus] = useState('idle'); // 'idle' | 'live' | 'sending'
@@ -2575,30 +2580,30 @@ function HungerCrisisDashboard() {
     setIncidents((prev) => [inc, ...prev]);
   }, [isAssessment]);
 
-const pushAlert = useCallback((a) => {
-  // Route critical alerts to the blocking modal queue
-  if (a.level === "critical") {
-    setCriticalQueue((q) => [...q, a]);
-  } else {
-    setAlerts((prev) => {
-      const next = [a, ...prev];
-      const overflow = next.slice(5); // anything beyond the visible stack
-      // Convert any dropped critical alerts into incidents
-      overflow.forEach((old) => {
-        if (old && old.level === 'critical') {
-          addIncidentFromAlert(old);
-        }
+  const pushAlert = useCallback((a) => {
+    // Route critical alerts to the blocking modal queue
+    if (a.level === "critical") {
+      setCriticalQueue((q) => [...q, a]);
+    } else {
+      setAlerts((prev) => {
+        const next = [a, ...prev];
+        const overflow = next.slice(5); // anything beyond the visible stack
+        // Convert any dropped critical alerts into incidents
+        overflow.forEach((old) => {
+          if (old && old.level === 'critical') {
+            addIncidentFromAlert(old);
+          }
+        });
+        return next.slice(0, 5);
       });
-      return next.slice(0, 5);
-    });
-  }
+    }
 
-  if (soundOn && (a.level === "high" || a.level === "critical")) {
-    const ctx = ensureAudioCtx();
-    if (ctx && ctx.state === "suspended") ctx.resume();
-    playAlertSound(a.level);
-  }
-}, [soundOn, addIncidentFromAlert]);
+    if (soundOnRef.current && (a.level === "high" || a.level === "critical")) {
+      const ctx = ensureAudioCtx();
+      if (ctx && ctx.state === "suspended") ctx.resume();
+      playAlertSound(a.level);
+    }
+  }, [addIncidentFromAlert]);
 
   const notifyAction = useCallback((action, via = "automated") => {
     const where = currentCritical?.where || "Sector C";
@@ -2824,8 +2829,10 @@ const pushAlert = useCallback((a) => {
         sorted.sort((a, b) => {
           const at = Number.isFinite(Number(a?.revealedAt)) ? Number(a.revealedAt) : Infinity;
           const bt = Number.isFinite(Number(b?.revealedAt)) ? Number(b.revealedAt) : Infinity;
-          if (at === bt) return 0;
-          return at - bt;
+          if (at === bt) {
+            return (b?.id ?? "").localeCompare(a?.id ?? "");
+          }
+          return bt - at;
         });
         return sorted;
       });
@@ -2867,6 +2874,7 @@ const pushAlert = useCallback((a) => {
 
   // Remote WebSocket: receive alerts from server
   useEffect(() => {
+    unmountedRef.current = false;
     function connectOPS() {
       if (wsRef.current || isConnectingRef.current) return;
       isConnectingRef.current = true;
@@ -3171,6 +3179,20 @@ const pushAlert = useCallback((a) => {
     }
     txResetRef.current = setTimeout(() => setTxStatus('idle'), 1200);
   }, [activeChannelMeta, playChannelClip, soundOn]);
+
+  useEffect(() => {
+    const keyBase = activeChannelMeta ? `${activeChannelMeta.id ?? ""}:${activeChannelMeta.clip ?? ""}` : null;
+    if (!soundOn || !activeChannelMeta?.clip) {
+      lastRadioKeyRef.current = null;
+      stopAllRadioClips();
+      return;
+    }
+    if (lastRadioKeyRef.current === keyBase) {
+      return;
+    }
+    lastRadioKeyRef.current = keyBase;
+    playChannelClip(activeChannelMeta);
+  }, [activeChannelMeta, soundOn, playChannelClip, stopAllRadioClips]);
 
   if (view === 'control') {
     return <ControlPanel />;
