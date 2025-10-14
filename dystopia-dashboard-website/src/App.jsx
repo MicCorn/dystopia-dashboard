@@ -45,7 +45,8 @@ import {
   RefreshCw,
   Sparkles,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -80,10 +81,42 @@ const CRITICAL_ACTIONS = [
   "Initiate co-op protocol",
 ];
 const PSA_ROTATION_INTERVAL_MS = 7000;
+const SERVER_LOG_LIMIT = 400;
+const SERVER_CONSOLE_VISIBLE_LIMIT = 7;
 
 // --- Utility helpers ---
 const fmt = (n) => n.toLocaleString();
 const nowStamp = () => new Date().toLocaleString();
+
+function normalizeLogEntry(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = typeof raw.id === "string" && raw.id ? raw.id : crypto.randomUUID();
+  const ts = Number.isFinite(Number(raw.ts)) ? Number(raw.ts) : Date.now();
+  const tag = typeof raw.tag === "string" && raw.tag.trim() ? raw.tag.trim() : null;
+  const message = typeof raw.message === "string" ? raw.message.trim() : "";
+  if (!message) return null;
+  const level = typeof raw.level === "string" ? raw.level : "info";
+  const entry = { id, ts, tag, message, level };
+  if (typeof raw.sessionId === "string" && raw.sessionId) {
+    entry.sessionId = raw.sessionId;
+  }
+  if (raw.meta && typeof raw.meta === "object" && Object.keys(raw.meta).length) {
+    entry.meta = raw.meta;
+  }
+  return entry;
+}
+
+function formatConsoleTime(ts) {
+  const numeric = Number(ts);
+  if (!Number.isFinite(numeric)) {
+    return new Date().toLocaleTimeString([], { hour12: false });
+  }
+  const d = new Date(numeric);
+  if (Number.isNaN(d.getTime())) {
+    return new Date().toLocaleTimeString([], { hour12: false });
+  }
+  return d.toLocaleTimeString([], { hour12: false });
+}
 
 function useClock() {
   const [t, setT] = useState(new Date());
@@ -470,6 +503,9 @@ function QRCard({ sessionId }) {
   const [dataUrl, setDataUrl] = React.useState(null);
   const [startStatus, setStartStatus] = React.useState("idle");
   const [startMessage, setStartMessage] = React.useState("");
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const openExpanded = React.useCallback(() => setIsExpanded(true), []);
+  const closeExpanded = React.useCallback(() => setIsExpanded(false), []);
   const controlUrl = `${window.location.origin}/?mode=assessment&session=${encodeURIComponent(sessionId || "")}#/control`;
   const startEndpoint = sessionId ? `http://localhost:8787/api/session/${encodeURIComponent(sessionId)}/start` : null;
 
@@ -504,48 +540,129 @@ function QRCard({ sessionId }) {
     }
   }, [startEndpoint]);
 
-  return (
-    <Card className="bg-neutral-900 border-white/10">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-white/90 flex items-center gap-2"><Radio className="w-4 h-4"/> HCI Taskforce Assessment — Join</CardTitle>
-        <CardDescription className="text-white/50">Scan to open the Controller</CardDescription>
-      </CardHeader>
-      <CardContent className="flex items-center gap-4">
-        {dataUrl ? (
-          <img src={dataUrl} alt="Join QR" className="w-36 h-36 rounded-lg border border-white/10"/>
-        ) : (
-          <div className="w-36 h-36 rounded-lg border border-dashed border-white/15 grid place-items-center text-xs text-white/50">QR loading…</div>
-        )}
-        <div className="text-sm text-white/80 space-y-3">
-          <div className="space-y-1">
-            <div className="text-white/60">URL:</div>
-            <div className="text-white/70 break-all">{controlUrl}</div>
-          </div>
-          <div className="space-y-2">
-            <Button
-              onClick={handleStart}
-              disabled={!startEndpoint || startStatus === "loading"}
-              className="flex items-center gap-2 !bg-emerald-500/90 hover:bg-emerald-400/90 text-black border border-emerald-300/60 disabled:opacity-60"
-            >
-              {startStatus === "loading" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
+  React.useEffect(() => {
+    if (!isExpanded) return;
+    const handleKey = (event) => {
+      if (event.key === "Escape") closeExpanded();
+    };
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [closeExpanded, isExpanded]);
+
+  const handleCompactKey = React.useCallback(
+    (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openExpanded();
+      }
+    },
+    [openExpanded]
+  );
+
+  const renderCardBody = (expanded = false) => {
+    const handleButtonClick = (event) => {
+      if (!expanded) event.stopPropagation();
+      handleStart();
+    };
+
+    return (
+      <Card
+        className={`bg-neutral-900 border-white/10 ${expanded ? "w-full max-w-4xl" : "h-full"} ${expanded ? "" : "cursor-pointer transition hover:border-white/25 hover:bg-neutral-800"}`}
+        onClick={!expanded ? openExpanded : undefined}
+        role={!expanded ? "button" : undefined}
+        tabIndex={!expanded ? 0 : undefined}
+        onKeyDown={!expanded ? handleCompactKey : undefined}
+      >
+        <CardHeader className={`pb-3 ${expanded ? "space-y-2" : "pb-2"}`}>
+          <CardTitle className={`text-white/90 flex items-center gap-2 ${expanded ? "text-2xl" : ""}`}>
+            <Radio className={expanded ? "w-6 h-6" : "w-4 h-4"} /> HCI Taskforce Assessment — Join
+          </CardTitle>
+          <CardDescription className={`${expanded ? "text-base" : ""} text-white/50`}>Scan to open the Controller</CardDescription>
+        </CardHeader>
+        <CardContent className={`flex flex-col sm:flex-row items-center gap-6 ${expanded ? "p-8" : ""}`}>
+          {dataUrl ? (
+            <img
+              src={dataUrl}
+              alt="Join QR"
+              className={`${expanded ? "w-[22rem] h-[22rem]" : "w-48 h-48"} rounded-lg border border-white/10 shadow-lg`}
+            />
+          ) : (
+            <div className={`${expanded ? "w-[22rem] h-[22rem] text-base" : "w-48 h-48 text-xs"} rounded-lg border border-dashed border-white/15 grid place-items-center text-white/50 bg-black/40`}>QR loading…</div>
+          )}
+          <div className={`text-sm text-white/80 space-y-4 max-w-md ${expanded ? "text-base" : ""}`}>
+            <div className="space-y-1">
+              <div className="text-white/60">URL:</div>
+              <div className="text-white/70 break-all">{controlUrl}</div>
+            </div>
+            <div className="space-y-2">
+              <Button
+                onClick={handleButtonClick}
+                disabled={!startEndpoint || startStatus === "loading"}
+                className="flex items-center gap-2 !bg-emerald-500/90 hover:bg-emerald-400/90 text-black border border-emerald-300/60 disabled:opacity-60"
+              >
+                {startStatus === "loading" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                <span>{startStatus === "success" ? "Session Started" : "Start Session"}</span>
+              </Button>
+              {startMessage && (
+                <div className={`text-xs ${expanded ? "text-sm" : ""} ${startStatus === "error" ? "text-red-300" : "text-emerald-300"}`}>
+                  {startMessage}
+                </div>
               )}
-              <span>{startStatus === "success" ? "Session Started" : "Start Session"}</span>
-            </Button>
-            {startMessage && (
-              <div className={`text-xs ${startStatus === "error" ? "text-red-300" : "text-emerald-300"}`}>
-                {startMessage}
-              </div>
-            )}
-            {!startEndpoint && (
-              <div className="text-xs text-white/50">Session ID missing; cannot start.</div>
-            )}
+              {!startEndpoint && (
+                <div className={`text-xs text-white/50 ${expanded ? "text-sm" : ""}`}>Session ID missing; cannot start.</div>
+              )}
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <>
+      {renderCardBody(false)}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur"
+            onClick={closeExpanded}
+            role="presentation"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 24 }}
+              onClick={(event) => event.stopPropagation()}
+              className="relative"
+            >
+              <button
+                type="button"
+                onClick={closeExpanded}
+                className="absolute -right-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/70 text-white transition hover:bg-white/20"
+                aria-label="Close expanded QR card"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {renderCardBody(true)}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -1656,6 +1773,28 @@ function HungerCrisisDashboard() {
 
   const [serverEvents, setServerEvents] = useState([]); // live events from server (open but not closed)
   const serverEventsRef = useRef(new Map()); // id -> event snapshot
+  const [serverLogEntries, setServerLogEntries] = useState([]);
+  const serverLogScrollRef = useRef(null);
+  const serverLogCountRef = useRef(0);
+  const visibleServerLogEntries = useMemo(
+    () => serverLogEntries.slice(-SERVER_CONSOLE_VISIBLE_LIMIT),
+    [serverLogEntries]
+  );
+  useEffect(() => {
+    if (!isAssessment) return;
+    serverEventsRef.current = new Map();
+    setServerEvents([]);
+    setServerLogEntries([]);
+    serverLogCountRef.current = 0;
+  }, [isAssessment, assessmentSessionId]);
+  useEffect(() => {
+    if (!isAssessment) return;
+    const container = serverLogScrollRef.current;
+    if (!container) return;
+    if (visibleServerLogEntries.length === serverLogCountRef.current) return;
+    serverLogCountRef.current = visibleServerLogEntries.length;
+    container.scrollTop = container.scrollHeight;
+  }, [isAssessment, visibleServerLogEntries]);
   const [algoText, setAlgoText] = useState("");         // THE ALGORITHM latest line
   const [assessmentFinal, setAssessmentFinal] = useState(false);
   const [leaderboardEntries, setLeaderboardEntries] = useState([]);
@@ -2258,6 +2397,26 @@ const pushAlert = useCallback((a) => {
 
           // Assessment-mode messages from server
           if (isAssessment) {
+            if (msg.type === "log_snapshot" && Array.isArray(msg.entries)) {
+              const normalized = msg.entries
+                .map((entry) => normalizeLogEntry(entry))
+                .filter(Boolean)
+                .sort((a, b) => a.ts - b.ts);
+              setServerLogEntries(normalized.slice(-SERVER_LOG_LIMIT));
+              return;
+            }
+            if (msg.type === "log" && msg.entry) {
+              const entry = normalizeLogEntry(msg.entry);
+              if (!entry) return;
+              setServerLogEntries((prev) => {
+                const next = [...prev, entry];
+                if (next.length > SERVER_LOG_LIMIT) {
+                  next.splice(0, next.length - SERVER_LOG_LIMIT);
+                }
+                return next;
+              });
+              return;
+            }
             if (msg.type === "event_open" && msg.event) {
               const evn = msg.event;
               const a = {
@@ -2492,14 +2651,16 @@ const pushAlert = useCallback((a) => {
                           ) : (
                             <Siren className="w-4 h-4" />
                           )}
-                          {mediaLogTab === "decisions" ? "Decision Log" : "Reported Incidents"}
+                          {mediaLogTab === "decisions"
+                            ? (isAssessment ? "Server Console" : "Decision Log")
+                            : "Reported Incidents"}
                         </CardTitle>
                         <TabsList className="bg-white/5 border border-white/10 rounded-lg w-fit">
                           <TabsTrigger
                             value="decisions"
                             className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white"
                           >
-                            Decision Log
+                            {isAssessment ? "Server Console" : "Decision Log"}
                           </TabsTrigger>
                           <TabsTrigger
                             value="incidents"
@@ -2512,34 +2673,77 @@ const pushAlert = useCallback((a) => {
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 flex flex-col">
                       <TabsContent value="decisions" className="flex-1 min-h-0 focus-visible:outline-none">
-                        <div className="space-y-2 text-sm">
-                          {recentDecisions.length === 0 && (
-                            <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">
-                              No decisions logged.
+                        {isAssessment ? (
+                          <div className="flex h-full min-h-[14rem] flex-col">
+                            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.4em] text-emerald-400/70">
+                              <span>Console Output</span>
+                              <span className="text-emerald-500/80">
+                                {visibleServerLogEntries.length ? `${visibleServerLogEntries.length} lines` : "standby"}
+                              </span>
                             </div>
-                          )}
-                          {recentDecisions.map((entry) => (
-                            <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="text-white/80">{entry.action}</div>
-                                <Badge
-                                  className={`bg-white/10 border-white/20 ${
-                                    entry.via === "automated"
-                                      ? "text-emerald-300"
-                                      : entry.via === "operator"
-                                      ? "text-blue-200"
-                                      : "text-white/80"
-                                  }`}
-                                >
-                                  {entry.via}
-                                </Badge>
-                              </div>
-                              <div className="mt-1 flex items-center gap-2 text-[11px] text-white/50">
-                                <MapPin className="h-3 w-3" /> {entry.where} • {entry.ts}
-                              </div>
+                            <div
+                              ref={serverLogScrollRef}
+                              className="flex-1 overflow-y-auto rounded-xl border border-emerald-500/40 bg-[#020f07]/90 p-3 font-mono text-xs text-emerald-300 shadow-[0_0_28px_rgba(16,185,129,0.24)]"
+                              style={{
+                                backgroundImage: "repeating-linear-gradient(rgba(16,185,129,0.07) 0px, rgba(16,185,129,0.07) 1px, transparent 1px, transparent 4px)",
+                              }}
+                            >
+                              {visibleServerLogEntries.length === 0 ? (
+                                <div className="animate-pulse text-emerald-500/60">Awaiting server activity…</div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {visibleServerLogEntries.map((entry) => {
+                                    const levelClass = (() => {
+                                      const lvl = (entry.level || "").toLowerCase();
+                                      if (lvl === "warn") return "text-amber-300";
+                                      if (lvl === "error") return "text-red-300";
+                                      if (lvl === "debug") return "text-sky-300";
+                                      if (lvl === "system") return "text-emerald-200";
+                                      if (lvl === "event") return "text-emerald-100";
+                                      return "text-emerald-300";
+                                    })();
+                                    return (
+                                      <div key={entry.id} className="whitespace-pre-wrap leading-relaxed">
+                                        <span className="text-emerald-500/70">[{formatConsoleTime(entry.ts)}]</span>
+                                        {entry.tag && <span className="ml-2 text-emerald-400/80">[{entry.tag}]</span>}
+                                        <span className={`ml-2 ${levelClass}`}>› {entry.message}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-sm">
+                            {recentDecisions.length === 0 && (
+                              <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">
+                                No decisions logged.
+                              </div>
+                            )}
+                            {recentDecisions.map((entry) => (
+                              <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-white/80">{entry.action}</div>
+                                  <Badge
+                                    className={`bg-white/10 border-white/20 ${
+                                      entry.via === "automated"
+                                        ? "text-emerald-300"
+                                        : entry.via === "operator"
+                                        ? "text-blue-200"
+                                        : "text-white/80"
+                                    }`}
+                                  >
+                                    {entry.via}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1 flex items-center gap-2 text-[11px] text-white/50">
+                                  <MapPin className="h-3 w-3" /> {entry.where} • {entry.ts}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </TabsContent>
                       <TabsContent value="incidents" className="flex-1 min-h-0 focus-visible:outline-none">
                         <div className="flex flex-col gap-3">
@@ -2762,7 +2966,7 @@ const pushAlert = useCallback((a) => {
                                 size="sm"
                                 className="h-7 bg-blue-600 px-3 py-1 text-xs hover:bg-blue-500"
                               >
-                                Push Broadcast
+                                Broadcast
                               </Button>
                             </div>
                           </div>

@@ -15,6 +15,8 @@ const TICK_MS = 500;
 
 /** In-memory store (ok for exhibitions; swap to Redis/Postgres later) */
 const sessions = new Map();
+
+const MAX_SESSION_LOGS = 400;
 /*
   session = {
     id, scenarioId,
@@ -73,6 +75,34 @@ function bcast(set, msg) {
   }
 }
 
+function sessionLog(session, tag, message, level = "info", meta) {
+  if (!session) return;
+  if (!Array.isArray(session.logs)) session.logs = [];
+  const entry = {
+    id: nanoid(8),
+    ts: Date.now(),
+    tag,
+    message,
+    level,
+    sessionId: session.id,
+  };
+  if (meta && typeof meta === "object" && Object.keys(meta).length) {
+    entry.meta = meta;
+  }
+  session.logs.push(entry);
+  if (session.logs.length > MAX_SESSION_LOGS) {
+    session.logs.splice(0, session.logs.length - MAX_SESSION_LOGS);
+  }
+  const tagLabel = tag ? `[${tag}]` : "[LOG]";
+  console.log(`[${session.id}] ${tagLabel} ${message}`);
+  try {
+    bcast(session.sockets.ops, { type: "log", entry });
+  } catch {
+    // noop
+  }
+  return entry;
+}
+
 /** Aggregate score calc */
 function recomputeAgg(session) {
   const vals = [...session.participants.values()].map(p => p.score || 0);
@@ -86,7 +116,12 @@ function openEventsIfNeeded(session, tSec) {
   for (const ev of session.scenario.events) {
     if (ev._opened || tSec < ev.t) continue;
     ev._opened = true;
-    console.log(`[EVENT OPEN] ${ev.id} '${ev.title || ev.correctAction}' @t=${ev.t}s window=${ev.responseWindowSec}s loc='${ev.location || ""}'`);
+    sessionLog(
+      session,
+      "EVENT OPEN",
+      `${ev.id} '${ev.title || ev.correctAction}' @t=${ev.t}s window=${ev.responseWindowSec}s loc='${ev.location || ""}'`,
+      "event"
+    );
     // announce opening
     bcast(session.sockets.ops, { type: "event_open", event: ev });
     bcast(session.sockets.control, { type: "event_open", event: publicEvent(ev) });
@@ -119,7 +154,7 @@ function closeEvent(session, eventId) {
   const ev = session.scenario.events.find(e => e.id === eventId);
   if (!ev || ev._closed) return;
   ev._closed = true;
-  console.log(`[EVENT CLOSE] ${eventId}`);
+  sessionLog(session, "EVENT CLOSE", `${eventId} window closed`, "event");
 
   // penalize noResponse for participants without an input
   const perEvent = session.inputs.get(eventId) || new Map();
@@ -150,6 +185,7 @@ function closeEvent(session, eventId) {
 function finalizeSession(session) {
   if (session._finalized) return;
   session._finalized = true;
+  sessionLog(session, "SESSION", "Finalized. Leaderboard dispatched.", "system");
 
   // leaderboard
   const leaderboard = [...session.participants.values()]
@@ -215,11 +251,12 @@ app.post("/api/session", (req, res) => {
     sockets: { ops: new Set(), control: new Set() },
     participants: new Map(),
     inputs: new Map(),
-    scoreAgg: { mean: 0, max: 0, activeCount: 0 }
+    scoreAgg: { mean: 0, max: 0, activeCount: 0 },
+    logs: [],
   };
   sessions.set(id, session);
-  console.log(`\n[SESSION] Created ${id} for scenario '${scenarioId}'`);
-  console.log(`Open OPS:  http://localhost:5173/?mode=assessment&session=${id}#/ops`);
+  sessionLog(session, "SESSION", `Created for scenario '${scenarioId}'`, "system");
+  sessionLog(session, "SESSION", `OPS URL: http://localhost:5173/?mode=assessment&session=${id}#/ops`, "system");
   res.json({ sessionId: id });
 });
 
@@ -244,7 +281,12 @@ app.post("/api/session/:id/start", (req, res) => {
     // open events as we pass them
     openEventsIfNeeded(session, tSec);
   }, TICK_MS);
-  console.log(`\n[SESSION] Started ${session.id} (${session.scenarioId}) at ${new Date(session.startedAt).toLocaleTimeString()}`);
+  sessionLog(
+    session,
+    "SESSION",
+    `Started at ${new Date(session.startedAt).toLocaleTimeString()} (${session.scenarioId})`,
+    "system"
+  );
   res.json({ ok: true, startedAt: session.startedAt });
 });
 
@@ -284,14 +326,26 @@ app.post("/api/session/:id/input", (req, res) => {
     recomputeAgg(s);
     // personal feedback
     bcastPersonal(s, participantId, { type:"feedback", eventId, delta, total:p.score, reason:"late" });
-    console.log(`[INPUT] ${p.codename} late for ${eventId} (delta ${delta})`);
+    sessionLog(
+      s,
+      "INPUT",
+      `${p.codename} late for ${eventId} (Δ ${delta}) total=${p.score}`,
+      "warn",
+      { participantId, eventId, reason: "late" }
+    );
     return res.json({ ok: true, accepted: false, reason: "late" });
   }
 
   // first input only per participant/event
   const perEvent = s.inputs.get(eventId) || new Map();
   if (perEvent.has(participantId)) {
-    console.log(`[INPUT] duplicate from ${p.codename} on ${eventId}`);
+    sessionLog(
+      s,
+      "INPUT",
+      `${p.codename} duplicate on ${eventId}`,
+      "warn",
+      { participantId, eventId, reason: "duplicate" }
+    );
     return res.json({ ok: true, accepted: false, reason: "duplicate" });
   }
 
@@ -308,7 +362,13 @@ app.post("/api/session/:id/input", (req, res) => {
   // OPS aggregate trend
   bcast(s.sockets.ops, { type: "score_agg", ...s.scoreAgg });
 
-  console.log(`[INPUT] ${p.codename} → ${action} on ${eventId} :: ${reason} (Δ ${delta}) total=${p.score}`);
+  sessionLog(
+    s,
+    "INPUT",
+    `${p.codename} → ${action} on ${eventId} :: ${reason} (Δ ${delta}) total=${p.score}`,
+    "info",
+    { participantId, eventId, action, reason, delta }
+  );
   res.json({ ok: true, accepted: true });
 });
 
@@ -364,7 +424,13 @@ app.post("/api/session/:id/dev/open", (req, res) => {
   // Open immediately using current t
   openEventsIfNeeded(s, nowT);
 
-  console.log(`[DEV] Opened synthetic event ${ev.id} (${correctAction}) at t=${nowT}s`);
+  sessionLog(
+    s,
+    "DEV",
+    `Opened synthetic event ${ev.id} (${correctAction}) at t=${nowT}s`,
+    "debug",
+    { eventId: ev.id }
+  );
   return res.json({ ok: true, eventId: ev.id });
 });
 
@@ -375,7 +441,7 @@ app.post("/api/session/:id/dev/algo", (req, res) => {
   const text = (req.body?.text || "EXECUTE: Maintain order.").toString();
   bcast(s.sockets.control, { type: "algo", text });
   bcast(s.sockets.ops,      { type: "algo", text });
-  console.log(`[DEV] Algo: ${text}`);
+  sessionLog(s, "DEV", `Algo push: ${text}`, "debug");
   return res.json({ ok: true });
 });
 
@@ -422,6 +488,11 @@ wss.on("connection", (ws) => {
             ws.send(JSON.stringify({ type:"event_open", event: ev }));
           }
         }
+        const history = Array.isArray(session.logs) ? session.logs.slice(-200) : [];
+        if (history.length) {
+          ws.send(JSON.stringify({ type: "log_snapshot", entries: history }));
+        }
+        sessionLog(session, "OPS", `Dashboard connected (active OPS sockets: ${session.sockets.ops.size})`, "system");
         return;
       }
 
@@ -435,6 +506,7 @@ wss.on("connection", (ws) => {
         const codename = (msg.codename || `Unit ${String(Math.floor(Math.random()*10000)).padStart(4,"0")}`).toString();
         ws._pid = participantId;
 
+        const wasExisting = session.participants.has(participantId);
         const p = session.participants.get(participantId) || { id: participantId, codename, score: 0 };
         p.codename = codename || p.codename;
         session.participants.set(participantId, p);
@@ -442,6 +514,14 @@ wss.on("connection", (ws) => {
         session.sockets.control.add(ws);
 
         ws.send(JSON.stringify({ type:"hello_ack", role:"control", sessionId:session.id, participantId, codename }));
+
+        sessionLog(
+          session,
+          wasExisting ? "REJOIN" : "JOIN",
+          `${p.codename} ${wasExisting ? "reconnected" : "joined"} (participants: ${session.participants.size})`,
+          "info",
+          { participantId }
+        );
 
         // sync with clock + current open events
         const t = getSessionT(session);
@@ -472,8 +552,23 @@ wss.on("connection", (ws) => {
     if (!role || !sid) return;
     const s = sessions.get(sid);
     if (!s) return;
-    if (role === "ops") s.sockets.ops.delete(ws);
-    if (role === "control") s.sockets.control.delete(ws);
+    if (role === "ops") {
+      s.sockets.ops.delete(ws);
+      sessionLog(s, "OPS", `Dashboard disconnected (active OPS sockets: ${s.sockets.ops.size})`, "system");
+    }
+    if (role === "control") {
+      s.sockets.control.delete(ws);
+      const pid = ws._pid;
+      const participant = pid ? s.participants.get(pid) : null;
+      const label = participant?.codename || pid || "Unknown Participant";
+      sessionLog(
+        s,
+        "LEAVE",
+        `${label} disconnected (control sockets: ${s.sockets.control.size})`,
+        "info",
+        pid ? { participantId: pid } : undefined
+      );
+    }
   });
 });
 

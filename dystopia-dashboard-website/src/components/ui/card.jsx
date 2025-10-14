@@ -1,5 +1,9 @@
-export function Card({ className = "", children }) {
-  return <div className={`rounded-2xl border ${className}`}>{children}</div>;
+export function Card({ className = "", children, ...props }) {
+  return (
+    <div className={`rounded-2xl border ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }
 export function CardHeader({ className = "", children }) {
   return <div className={`p-4 border-b border-white/10 ${className}`}>{children}</div>;
