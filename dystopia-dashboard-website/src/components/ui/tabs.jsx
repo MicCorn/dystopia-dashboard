@@ -13,20 +13,28 @@ export function Tabs({ defaultValue, value: controlled, onValueChange, children,
     onValueChange?.(v);
   };
 
-  return (
-    <div className={className}>
-      {React.Children.map(children, (child) => {
-        if (!React.isValidElement(child)) return child;
-        if (child.type?.displayName === "TabsList") {
-          return React.cloneElement(child, { __setValue: set, __active: value });
-        }
-        if (child.type?.displayName === "TabsContent") {
-          return React.cloneElement(child, { __active: value });
-        }
-        return child;
-      })}
-    </div>
-  );
+  const enhance = (node) => {
+    if (!React.isValidElement(node)) return node;
+
+    const extraProps = {};
+    if (node.type?.displayName === "TabsList") {
+      extraProps.__setValue = set;
+      extraProps.__active = value;
+    } else if (node.type?.displayName === "TabsContent") {
+      extraProps.__active = value;
+    }
+
+    if (node.props?.children) {
+      extraProps.children = React.Children.map(node.props.children, enhance);
+    }
+
+    if (Object.keys(extraProps).length > 0) {
+      return React.cloneElement(node, extraProps);
+    }
+    return node;
+  };
+
+  return <div className={className}>{React.Children.map(children, enhance)}</div>;
 }
 
 export function TabsList({ children, className = "", __setValue, __active }) {

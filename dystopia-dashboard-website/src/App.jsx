@@ -212,8 +212,6 @@ const RADIO_CHANNELS = [
   { id: 2, name: "Channel 2", detail: "Field Ops Loop", txIndex: 2 },
   { id: 3, name: "Channel 3", detail: "Sector Command", txIndex: 3 },
   { id: 4, name: "Channel 4", detail: "Relief Corridor", txIndex: 4 },
-  { id: 5, name: "Channel 5", detail: "Logistics Queue", txIndex: 1 },
-  { id: 6, name: "Channel 6", detail: "Medical Priority", txIndex: 2 },
 ];
 
 const CCTV_FEEDS = [
@@ -1985,6 +1983,7 @@ function HungerCrisisDashboard() {
     return preIncidents;
   });
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [mediaLogTab, setMediaLogTab] = useState("decisions");
   // Public broadcast images/ad assets
   const publicImages = useMemo(() => (
     ["ad1","ad2","ad3","ad4","ad5","psa1","psa2","psa3"].map((k, i) => ({ id: i, key: k, src: `/assets/${k}.png`, title: k.toUpperCase() }))
@@ -2385,7 +2384,7 @@ const pushAlert = useCallback((a) => {
   }
 
   const incidentHighlights = useMemo(() => incidents.slice(0, 2), [incidents]);
-  const recentDecisions = useMemo(() => auditLog.slice(0, 4), [auditLog]);
+  const recentDecisions = useMemo(() => auditLog.slice(0, 3), [auditLog]);
   const alertHighlights = useMemo(() => alerts.slice(0, 5), [alerts]);
   const socialTweetImages = useMemo(
     () => Array.from({ length: 7 }, (_, idx) => `/assets/tweets/tweet${idx + 1}.jpg`),
@@ -2479,37 +2478,106 @@ const pushAlert = useCallback((a) => {
                 </Card>
 
                 <Card className="col-[1/2] row-[2/3] flex flex-col bg-neutral-900/90 border-white/10">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white/90 text-lg">Reported Incidents</CardTitle>
-                    <CardDescription className="text-white/50">Active queue</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 min-h-0 flex flex-col gap-3">
-                    {incidentHighlights.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
-                        No incidents reported.
+                  <Tabs
+                    value={mediaLogTab}
+                    onValueChange={setMediaLogTab}
+                    defaultValue="decisions"
+                    className="flex h-full flex-col"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-white/90 text-lg flex items-center gap-2">
+                          {mediaLogTab === "decisions" ? (
+                            <Activity className="w-4 h-4" />
+                          ) : (
+                            <Siren className="w-4 h-4" />
+                          )}
+                          {mediaLogTab === "decisions" ? "Decision Log" : "Reported Incidents"}
+                        </CardTitle>
+                        <TabsList className="bg-white/5 border border-white/10 rounded-lg w-fit">
+                          <TabsTrigger
+                            value="decisions"
+                            className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white"
+                          >
+                            Decision Log
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="incidents"
+                            className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white"
+                          >
+                            Reported Incidents
+                          </TabsTrigger>
+                        </TabsList>
                       </div>
-                    )}
-                    {incidentHighlights.map((it) => (
-                      <button
-                        key={it.id}
-                        onClick={() => setSelectedIncident(it)}
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-left transition hover:border-white/30 hover:bg-white/10"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-semibold text-white/90">{it.title}</div>
-                            <div className="mt-1 flex items-center gap-2 text-xs text-white/60">
-                              <MapPin className="w-3 h-3" /> {it.location}
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 flex flex-col">
+                      <TabsContent value="decisions" className="flex-1 min-h-0 focus-visible:outline-none">
+                        <div className="space-y-2 text-sm">
+                          {recentDecisions.length === 0 && (
+                            <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">
+                              No decisions logged.
                             </div>
-                            <div className="mt-1 text-xs text-white/50">Reported {it.timeReported}</div>
-                          </div>
-                          <Badge className={it.badgeClass ? `${it.badgeClass} whitespace-nowrap` : "bg-white/10 border-white/20 text-white/80 whitespace-nowrap"}>
-                            {it.status}
-                          </Badge>
+                          )}
+                          {recentDecisions.map((entry) => (
+                            <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-white/80">{entry.action}</div>
+                                <Badge
+                                  className={`bg-white/10 border-white/20 ${
+                                    entry.via === "automated"
+                                      ? "text-emerald-300"
+                                      : entry.via === "operator"
+                                      ? "text-blue-200"
+                                      : "text-white/80"
+                                  }`}
+                                >
+                                  {entry.via}
+                                </Badge>
+                              </div>
+                              <div className="mt-1 flex items-center gap-2 text-[11px] text-white/50">
+                                <MapPin className="h-3 w-3" /> {entry.where} • {entry.ts}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </button>
-                    ))}
-                  </CardContent>
+                      </TabsContent>
+                      <TabsContent value="incidents" className="flex-1 min-h-0 focus-visible:outline-none">
+                        <div className="flex flex-col gap-3">
+                          {incidentHighlights.length === 0 && (
+                            <div className="rounded-xl border border-dashed border-white/10 bg-black/40 px-3 py-4 text-sm text-white/60">
+                              No incidents reported.
+                            </div>
+                          )}
+                          {incidentHighlights.map((it) => (
+                            <button
+                              key={it.id}
+                              onClick={() => setSelectedIncident(it)}
+                              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-left transition hover:border-white/30 hover:bg-white/10"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold text-white/90">{it.title}</div>
+                                  <div className="mt-1 flex items-center gap-2 text-xs text-white/60">
+                                    <MapPin className="w-3 h-3" /> {it.location}
+                                  </div>
+                                  <div className="mt-1 text-xs text-white/50">Reported {it.timeReported}</div>
+                                </div>
+                                <Badge
+                                  className={
+                                    it.badgeClass
+                                      ? `${it.badgeClass} whitespace-nowrap`
+                                      : "bg-white/10 border-white/20 text-white/80 whitespace-nowrap"
+                                  }
+                                >
+                                  {it.status}
+                                </Badge>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </TabsContent>
+                    </CardContent>
+                  </Tabs>
                 </Card>
 
                 <Card className="col-[2/3] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
@@ -2559,54 +2627,54 @@ const pushAlert = useCallback((a) => {
                   )}
                 </div>
 
-                <Card className="col-[3/4] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white/90 text-lg flex items-center gap-2"><Radio className="w-4 h-4" /> Radio Control</CardTitle>
-                    <CardDescription className="text-white/50">Channel routing</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 min-h-0 flex flex-col justify-between gap-4">
-                    <div className="space-y-2">
-                      {RADIO_CHANNELS.map((ch) => (
-                        <button
-                          key={ch.id}
-                          onClick={() => {
-                            setActiveChannel(ch.id);
-                            if (ch.txIndex) setTxIndex(ch.txIndex);
-                          }}
-                          className={`w-full rounded-md border px-3 py-2 text-left transition ${activeChannel === ch.id ? 'bg-white/10 border-white/30 text-white' : 'bg-black/40 border-white/10 text-white/70 hover:text-white/90'}`}
-                        >
-                          <div className="text-sm font-medium">{ch.name}</div>
-                          <div className="text-xs text-white/50">{ch.detail}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handlePushToTalk}
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${txStatus === 'sending' ? 'border-red-500 bg-red-600' : 'border-red-400/60 bg-red-700/70 hover:border-red-400 hover:bg-red-600/90'}`}
-                          aria-label="Push to talk"
-                        >
-                          <Siren className="h-5 w-5 text-white" />
-                        </button>
-                        <button
-                          onClick={() => setSoundOn((prev) => !prev)}
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${soundOn ? 'border-emerald-400 bg-emerald-600/80' : 'border-white/20 bg-neutral-800 hover:border-white/40'}`}
-                          aria-label={soundOn ? "Mute all feeds" : "Enable audio"}
-                        >
-                          {soundOn ? <Volume2 className="h-5 w-5 text-white" /> : <VolumeX className="h-5 w-5 text-white/80" />}
-                        </button>
+                <div className="col-[3/4] row-[1/3] flex h-full flex-col gap-4">
+                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-white/90 text-lg flex items-center gap-2"><Radio className="w-4 h-4" /> Radio Control</CardTitle>
+                      <CardDescription className="text-white/50">Channel routing</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col justify-between gap-4">
+                      <div className="space-y-2">
+                        {RADIO_CHANNELS.map((ch) => (
+                          <button
+                            key={ch.id}
+                            onClick={() => {
+                              setActiveChannel(ch.id);
+                              if (ch.txIndex) setTxIndex(ch.txIndex);
+                            }}
+                            className={`w-full rounded-md border px-3 py-2 text-left transition ${activeChannel === ch.id ? 'bg-white/10 border-white/30 text-white' : 'bg-black/40 border-white/10 text-white/70 hover:text-white/90'}`}
+                          >
+                            <div className="text-sm font-medium">{ch.name}</div>
+                            <div className="text-xs text-white/50">{ch.detail}</div>
+                          </button>
+                        ))}
                       </div>
-                      <div className="text-right text-xs text-white/60">
-                        <div>{activeChannelMeta?.name ?? "Channel"}</div>
-                        <div className="font-mono text-white/70 uppercase">{txStatus === 'sending' ? 'TX LIVE' : 'IDLE'}</div>
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="flex gap-3">
+                          <button
+                            onClick={handlePushToTalk}
+                            className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${txStatus === 'sending' ? 'border-red-500 bg-red-600' : 'border-red-400/60 bg-red-700/70 hover:border-red-400 hover:bg-red-600/90'}`}
+                            aria-label="Push to talk"
+                          >
+                            <Siren className="h-5 w-5 text-white" />
+                          </button>
+                          <button
+                            onClick={() => setSoundOn((prev) => !prev)}
+                            className={`flex h-12 w-12 items-center justify-center rounded-full border-4 transition ${soundOn ? 'border-emerald-400 bg-emerald-600/80' : 'border-white/20 bg-neutral-800 hover:border-white/40'}`}
+                            aria-label={soundOn ? "Mute all feeds" : "Enable audio"}
+                          >
+                            {soundOn ? <Volume2 className="h-5 w-5 text-white" /> : <VolumeX className="h-5 w-5 text-white/80" />}
+                          </button>
+                        </div>
+                        <div className="text-right text-xs text-white/60">
+                          <div>{activeChannelMeta?.name ?? "Channel"}</div>
+                          <div className="font-mono text-white/70 uppercase">{txStatus === 'sending' ? 'TX LIVE' : 'IDLE'}</div>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <div className="col-[3/4] row-[2/3] grid h-full grid-rows-[0.45fr_0.55fr] gap-4">
-                  <Card className="flex h-full flex-col bg-neutral-900/90 border-white/10">
+                  <Card className="flex flex-1 flex-col bg-neutral-900/90 border-white/10">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-white/90 text-lg">Reference Library</CardTitle>
                       <CardDescription className="text-white/50">PSAs and past incidents</CardDescription>
@@ -2711,28 +2779,6 @@ const pushAlert = useCallback((a) => {
                           </div>
                         </TabsContent>
                       </Tabs>
-                    </CardContent>
-                  </Card>
-                  <Card className="flex flex-col bg-neutral-900/90 border-white/10">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-white/90 text-base flex items-center gap-2"><Activity className="w-4 h-4" /> Decision Log</CardTitle>
-                      <CardDescription className="text-white/50">Latest directives</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0 space-y-2 text-sm">
-                      {recentDecisions.length === 0 && <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">No decisions logged.</div>}
-                      {recentDecisions.map((entry) => (
-                        <div key={entry.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-white/80">{entry.action}</div>
-                            <Badge className={`bg-white/10 border-white/20 ${entry.via === 'automated' ? 'text-emerald-300' : entry.via === 'operator' ? 'text-blue-200' : 'text-white/80'}`}>
-                              {entry.via}
-                            </Badge>
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-[11px] text-white/50">
-                            <MapPin className="h-3 w-3" /> {entry.where} • {entry.ts}
-                          </div>
-                        </div>
-                      ))}
                     </CardContent>
                   </Card>
                 </div>
