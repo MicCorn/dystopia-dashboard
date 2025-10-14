@@ -43,7 +43,9 @@ import {
   Award,
   Loader2,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   Card,
@@ -77,6 +79,7 @@ const CRITICAL_ACTIONS = [
   "Throttle hit window",
   "Initiate co-op protocol",
 ];
+const PSA_ROTATION_INTERVAL_MS = 7000;
 
 // --- Utility helpers ---
 const fmt = (n) => n.toLocaleString();
@@ -1986,18 +1989,65 @@ function HungerCrisisDashboard() {
   const publicImages = useMemo(() => (
     ["ad1","ad2","ad3","ad4","ad5","psa1","psa2","psa3"].map((k, i) => ({ id: i, key: k, src: `/assets/${k}.png`, title: k.toUpperCase() }))
   ), []);
+  const totalPublicImages = publicImages.length;
   const [selectedAd, setSelectedAd] = useState(0); // default first selected
+  const currentPublicImage = useMemo(() => {
+    if (!totalPublicImages) return null;
+    const normalizedIndex = ((selectedAd % totalPublicImages) + totalPublicImages) % totalPublicImages;
+    return publicImages[normalizedIndex] ?? null;
+  }, [publicImages, selectedAd, totalPublicImages]);
+  const carouselTimerRef = useRef(null);
+
+  const clearCarouselTimer = useCallback(() => {
+    if (carouselTimerRef.current) {
+      window.clearInterval(carouselTimerRef.current);
+      carouselTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleCarouselRotation = useCallback(() => {
+    if (!totalPublicImages) return;
+    clearCarouselTimer();
+    carouselTimerRef.current = window.setInterval(() => {
+      setSelectedAd((prev) => (prev + 1) % totalPublicImages);
+    }, PSA_ROTATION_INTERVAL_MS);
+  }, [clearCarouselTimer, totalPublicImages]);
+
+  useEffect(() => {
+    scheduleCarouselRotation();
+    return () => {
+      clearCarouselTimer();
+    };
+  }, [scheduleCarouselRotation, clearCarouselTimer]);
+
+  const handleSelectAd = useCallback((index) => {
+    if (!totalPublicImages) return;
+    setSelectedAd(((index % totalPublicImages) + totalPublicImages) % totalPublicImages);
+    scheduleCarouselRotation();
+  }, [totalPublicImages, scheduleCarouselRotation]);
+
+  const goToNextAd = useCallback(() => {
+    if (!totalPublicImages) return;
+    setSelectedAd((prev) => (prev + 1) % totalPublicImages);
+    scheduleCarouselRotation();
+  }, [totalPublicImages, scheduleCarouselRotation]);
+
+  const goToPreviousAd = useCallback(() => {
+    if (!totalPublicImages) return;
+    setSelectedAd((prev) => (prev - 1 + totalPublicImages) % totalPublicImages);
+    scheduleCarouselRotation();
+  }, [totalPublicImages, scheduleCarouselRotation]);
 
   // Push broadcast action for selected public asset
   const pushBroadcast = useCallback(() => {
-    const item = publicImages[selectedAd];
+    const item = currentPublicImage;
     if (!item) return;
     const ts = nowStamp();
     setAuditLog((prev) => [
       { id: crypto.randomUUID(), ts, where: "Public Network", action: `Broadcast asset ${item.title}`, via: "operator" },
       ...prev,
     ].slice(0, 100));
-  }, [publicImages, selectedAd]);
+  }, [currentPublicImage]);
 
   const setSelectedIncidentSafe = useCallback((it) => setSelectedIncident(it), []);
 
@@ -2491,57 +2541,23 @@ const pushAlert = useCallback((a) => {
                   </CardContent>
                 </Card>
 
-                <Card className="col-[2/3] row-[2/3] flex flex-col bg-neutral-900/90 border-white/10">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white/90 text-lg">Reference Library</CardTitle>
-                    <CardDescription className="text-white/50">PSAs and past incidents</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 min-h-0 flex flex-col">
-                    <Tabs defaultValue="psa" className="flex h-full flex-col">
-                      <TabsList className="bg-white/5 border border-white/10 w-fit rounded-lg">
-                        <TabsTrigger value="psa" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">PSA Library</TabsTrigger>
-                        <TabsTrigger value="incidents" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">Past Incidents</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="psa" className="flex-1 min-h-0 focus-visible:outline-none">
-                        <div className="mt-3 grid h-full grid-cols-3 gap-3">
-                          {publicImages.slice(0, 6).map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => setSelectedAd(item.id)}
-                              className={`group relative overflow-hidden rounded-xl border ${selectedAd === item.id ? 'border-blue-400 shadow-lg shadow-blue-500/20' : 'border-white/10'} bg-black/40`}
-                            >
-                              <img src={item.src} alt={item.title} className="h-full w-full object-cover opacity-90 group-hover:opacity-100 transition" draggable={false} />
-                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1 text-[11px] text-white/80">
-                                {item.title}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-3 flex items-center justify-between text-xs text-white/60">
-                          <div>Selected: {publicImages[selectedAd]?.title ?? "—"}</div>
-                          <Button
-                            onClick={pushBroadcast}
-                            size="sm"
-                            className="h-7 bg-blue-600 px-3 py-1 text-xs hover:bg-blue-500"
-                          >
-                            Push Broadcast
-                          </Button>
-                        </div>
-                      </TabsContent>
-                      <TabsContent value="incidents" className="flex-1 min-h-0 focus-visible:outline-none">
-                        <div className="mt-3 space-y-3 text-sm">
-                          {incidentHighlights.length === 0 && <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">No archived incidents.</div>}
-                          {incidentHighlights.map((it) => (
-                            <div key={it.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
-                              <div className="text-sm font-semibold text-white/80">{it.title}</div>
-                              <div className="mt-1 text-xs text-white/60">{it._summary?.situation}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
+                <div className="col-[2/3] row-[2/3] min-h-0">
+                  {isAssessment ? (
+                    <QRCard sessionId={assessmentSessionId} />
+                  ) : (
+                    <Card className="flex h-full flex-col bg-neutral-900/90 border-white/10">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-white/90 text-base flex items-center gap-2"><MonitorCog className="w-4 h-4" /> Automation Window</CardTitle>
+                        <CardDescription className="text-white/50">Override readiness</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex flex-col justify-center gap-2 text-sm text-white/70">
+                        <div>Auto-plan: {autoPlanned ?? 'Manual authority'}</div>
+                        <div>Executes in: {autoPlanned ? `${autoSeconds}s` : '—'}</div>
+                        <div>Session: {assessmentSessionId ?? 'Local Ops'}</div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
 
                 <Card className="col-[3/4] row-[1/2] flex flex-col bg-neutral-900/90 border-white/10">
                   <CardHeader className="pb-3">
@@ -2590,23 +2606,113 @@ const pushAlert = useCallback((a) => {
                 </Card>
 
                 <div className="col-[3/4] row-[2/3] grid h-full grid-rows-[0.45fr_0.55fr] gap-4">
-                  <div className="min-h-0">
-                    {isAssessment ? (
-                      <QRCard sessionId={assessmentSessionId} />
-                    ) : (
-                      <Card className="flex h-full flex-col bg-neutral-900/90 border-white/10">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-white/90 text-base flex items-center gap-2"><MonitorCog className="w-4 h-4" /> Automation Window</CardTitle>
-                          <CardDescription className="text-white/50">Override readiness</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex-1 flex flex-col justify-center gap-2 text-sm text-white/70">
-                          <div>Auto-plan: {autoPlanned ?? 'Manual authority'}</div>
-                          <div>Executes in: {autoPlanned ? `${autoSeconds}s` : '—'}</div>
-                          <div>Session: {assessmentSessionId ?? 'Local Ops'}</div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
+                  <Card className="flex h-full flex-col bg-neutral-900/90 border-white/10">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-white/90 text-lg">Reference Library</CardTitle>
+                      <CardDescription className="text-white/50">PSAs and past incidents</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 flex flex-col">
+                      <Tabs defaultValue="psa" className="flex h-full flex-col">
+                        <TabsList className="bg-white/5 border border-white/10 w-fit rounded-lg">
+                          <TabsTrigger value="psa" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">PSA Library</TabsTrigger>
+                          <TabsTrigger value="incidents" className="px-3 py-1 text-xs data-[state=active]:bg-white/15 data-[state=active]:text-white">Past Incidents</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="psa" className="flex-1 min-h-0 focus-visible:outline-none">
+                          <div className="mt-3 flex h-full flex-col gap-3">
+                            <div className="relative flex-1 min-h-0 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                              <AnimatePresence initial={false} mode="wait">
+                                {currentPublicImage ? (
+                                  <motion.div
+                                    key={currentPublicImage.id}
+                                    className="absolute inset-0"
+                                    initial={{ opacity: 0, x: 40 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -40 }}
+                                    transition={{ duration: 0.35, ease: "easeOut" }}
+                                  >
+                                    <img
+                                      src={currentPublicImage.src}
+                                      alt={currentPublicImage.title}
+                                      className="h-full w-full object-cover"
+                                      draggable={false}
+                                    />
+                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-sm text-white/80">
+                                      {currentPublicImage.title}
+                                    </div>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="psa-empty"
+                                    className="absolute inset-0 flex items-center justify-center text-sm text-white/60"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                  >
+                                    No PSAs available.
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                              {totalPublicImages > 1 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={goToPreviousAd}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2 text-white/70 backdrop-blur transition hover:text-white hover:bg-white/10"
+                                    aria-label="Previous PSA"
+                                  >
+                                    <ChevronLeft className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={goToNextAd}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2 text-white/70 backdrop-blur transition hover:text-white hover:bg-white/10"
+                                    aria-label="Next PSA"
+                                  >
+                                    <ChevronRight className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-white/60">
+                              <div className="flex items-center gap-3">
+                                <span>Selected: {currentPublicImage?.title ?? "—"}</span>
+                                {totalPublicImages > 1 && (
+                                  <div className="flex items-center gap-2">
+                                    {publicImages.map((item, index) => (
+                                      <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => handleSelectAd(index)}
+                                        className={`h-2 w-2 rounded-full transition ${selectedAd === index ? 'bg-white' : 'bg-white/30 hover:bg-white/60'}`}
+                                        aria-label={`Show ${item.title}`}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                onClick={pushBroadcast}
+                                size="sm"
+                                className="h-7 bg-blue-600 px-3 py-1 text-xs hover:bg-blue-500"
+                              >
+                                Push Broadcast
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="incidents" className="flex-1 min-h-0 focus-visible:outline-none">
+                          <div className="mt-3 space-y-3 text-sm">
+                            {incidentHighlights.length === 0 && <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-white/60">No archived incidents.</div>}
+                            {incidentHighlights.map((it) => (
+                              <div key={it.id} className="rounded-xl border border-white/10 bg-black/40 px-3 py-3">
+                                <div className="text-sm font-semibold text-white/80">{it.title}</div>
+                                <div className="mt-1 text-xs text-white/60">{it._summary?.situation}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
                   <Card className="flex flex-col bg-neutral-900/90 border-white/10">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-white/90 text-base flex items-center gap-2"><Activity className="w-4 h-4" /> Decision Log</CardTitle>
