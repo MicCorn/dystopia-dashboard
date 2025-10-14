@@ -1,0 +1,384 @@
+{
+  "meta": {
+    "id": "dashboard-patch-test",
+    "title": "Dashboard Patch Feature Test",
+    "durationHintSec": 180,
+    "algoTone": "directive",
+    "endBufferSec": 5
+  },
+  "dashboard": {
+    "initial": {
+      "incidentSum": 2,
+      "recalibrationSum": 1,
+      "reportedIncidents": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "inc-init-001",
+            "title": "Power Draw Spike",
+            "location": "Sector C Grid Relay",
+            "timeReported": "07:42",
+            "status": "Monitoring",
+            "description": "Remote sensors detected a surge across the relay manifold.",
+            "emergencyLevel": 3,
+            "people": 0,
+            "details": "Engineering crews alerted.",
+            "badgeClass": "bg-yellow-500/20 text-yellow-200 border-yellow-400/40"
+          }
+        ]
+      },
+      "mapMarkers": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "mk-relay",
+            "label": "Grid Relay Watch",
+            "level": "moderate",
+            "status": "Monitoring",
+            "count": 1,
+            "x": 42,
+            "y": 58,
+            "details": "Telemetry trending upward."
+          }
+        ]
+      },
+      "trendSeries": {
+        "mode": "replace",
+        "points": [
+          { "t": 1710000000000, "incidents": 4, "recalibrations": 1 },
+          { "t": 1710000005000, "incidents": 5, "recalibrations": 2 },
+          { "t": 1710000010000, "incidents": 6, "recalibrations": 2 }
+        ]
+      },
+      "caloricStockpile": {
+        "value": 78.5,
+        "etaSeconds": 1800,
+        "unit": "%"
+      },
+      "implantOperationalRate": 95.1,
+      "implantAdoptionRate": 86.2,
+      "socialFeed": {
+        "mode": "replace",
+        "items": [
+          { "id": "feed-init-1", "text": "Sector C stable. All posts nominal.", "tone": "info", "source": "OpsNet" },
+          { "id": "feed-init-2", "text": "Recalibration crews on standby.", "tone": "info" }
+        ]
+      },
+      "socialHeadline": "Initializing Sector Dashboard",
+      "tweetGallery": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "tweet-gallery-1",
+            "src": "/assets/tweets/tweet1.jpg",
+            "title": "Operations Watch",
+            "description": "OpsNet camera sweep uploaded.",
+            "revealedAt": 0
+          }
+        ]
+      },
+      "radioChannels": {
+        "mode": "upsert",
+        "items": [
+          { "id": "1", "clip": "/audio/last-transmission1.mp3", "txIndex": 1 },
+          { "id": "2", "clip": "/audio/last-transmission2.mp3", "txIndex": 2 },
+          { "id": "3", "clip": "/audio/last-transmission3.mp3", "txIndex": 3 },
+          { "id": "4", "clip": "/audio/last-transmission4.mp3", "txIndex": 4 }
+        ]
+      }
+    }
+  },
+  "events": [
+    {
+      "id": "evt-010",
+      "t": 10,
+      "type": "alert",
+      "level": "elevated",
+      "title": "Unstable Civilian – Low Glucose",
+      "location": "Transit Hub Platform 4",
+      "details": "Attendant flagged erratic movement and slurred speech.",
+      "map": { "x": 64, "y": 54 },
+      "requiresAction": true,
+      "responseWindowSec": 20,
+      "allowedActions": ["Dispatch medics", "Broadcast calming PSA", "Hold for observation"],
+      "correctAction": "Dispatch medics",
+      "pointsPossible": 120,
+      "penalties": { "wrong": -80, "late": -40, "noResponse": -60 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Stabilize the civilian before crowd panic." },
+        { "tOffset": 8, "text": "Deploy medics now. Glucose drop confirmed." }
+      ],
+      "dashboard": {
+        "incidentSum": 3,
+        "recalibrationSum": 1,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-transit-001",
+              "title": "Low Glucose Intervention",
+              "location": "Transit Hub Platform 4",
+              "timeReported": "07:55",
+              "status": "Active – Medics En Route",
+              "description": "Civilian exhibiting hypoglycemic symptoms.",
+              "emergencyLevel": 2,
+              "people": 1,
+              "details": "Medics dispatched by Ops.",
+              "badgeClass": "bg-orange-500/20 text-orange-200 border-orange-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "mk-transit",
+              "label": "Medical Dispatch",
+              "level": "high",
+              "status": "Active",
+              "count": 1,
+              "x": 64,
+              "y": 54,
+              "details": "Medics ETA < 3 min."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "limit": 120,
+          "points": [
+            { "t": 1710000015000, "incidents": 7, "recalibrations": 2 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 77.8,
+          "etaSeconds": 1500
+        },
+      "socialFeed": {
+        "mode": "prepend",
+        "items": [
+          { "id": "feed-transit-alert", "text": "Transit Hub medics responding to civilian distress.", "tone": "warning", "source": "TransitNet" }
+        ]
+      },
+      "socialHeadline": "Transit Medic Dispatch In Progress",
+      "tweetGallery": {
+        "mode": "append",
+        "items": [
+          {
+            "id": "tweet-gallery-2",
+            "src": "/assets/tweets/tweet2.jpg",
+            "title": "Transit Hub Alert",
+            "description": "CCTV shows medics responding on Platform 4.",
+            "revealedAt": 10
+          }
+        ]
+      },
+      "radioChannels": {
+        "mode": "upsert",
+        "items": [
+          { "id": "1", "clip": "/audio/last-transmission2.mp3" }
+        ]
+      }
+    },
+    "dashboardClose": {
+      "reportedIncidents": {
+        "mode": "upsert",
+        "items": [
+            {
+              "id": "inc-transit-001",
+              "status": "Contained – Stabilized",
+              "details": "Civilian transported to care ward.",
+              "people": 1
+            }
+          ]
+        },
+        "mapMarkers": {
+          "removeIds": ["mk-transit"]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1710000020000, "incidents": 7, "recalibrations": 3 }
+          ]
+        },
+        "recalibrationSum": 2,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            { "id": "feed-transit-followup", "text": "Civilian stable after med response.", "tone": "success" }
+          ]
+        },
+        "socialHeadline": "Transit Hub Stabilized",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-gallery-3",
+              "src": "/assets/tweets/tweet3.jpg",
+              "title": "Response Recap",
+              "description": "Dispatch confirms stabilization at Transit Hub.",
+              "revealedAt": 25
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-045",
+      "t": 45,
+      "type": "critical",
+      "level": "critical",
+      "title": "Ration Convoy Ambush",
+      "location": "South Tunnels",
+      "details": "Convoy halted; reports of barricades and small fires.",
+      "map": { "x": 28, "y": 82 },
+      "requiresAction": true,
+      "responseWindowSec": 25,
+      "allowedActions": ["Dispatch riot units", "Throttle distribution", "Engage drones"],
+      "correctAction": "Dispatch riot units",
+      "pointsPossible": 200,
+      "penalties": { "wrong": -150, "late": -80, "noResponse": -100 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Convoy compromised. Riot suppression units required." },
+        { "tOffset": 10, "text": "Flames spreading. Clear the tunnel immediately." },
+        { "tOffset": 18, "text": "Failing to respond risks ration loss. MOVE." }
+      ],
+      "dashboard": {
+        "incidentSum": 4,
+        "recalibrationSum": 3,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-convoy-001",
+              "title": "Convoy Ambush",
+              "location": "South Tunnels Junction 6",
+              "timeReported": "08:17",
+              "status": "Active – Units Deploying",
+              "description": "Barricades erected; ration pallets threatened.",
+              "emergencyLevel": 1,
+              "people": 25,
+              "details": "Initial units rerouted.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-convoy",
+              "label": "Convoy Ambush",
+              "level": "critical",
+              "status": "Active",
+              "count": 3,
+              "x": 28,
+              "y": 82,
+              "details": "Units deploying; fire suppression en route."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1710000025000, "incidents": 9, "recalibrations": 3 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 75.2,
+          "etaSeconds": 1200,
+          "unit": "%"
+        },
+        "implantOperationalRate": 93.8,
+        "implantAdoptionRate": 86.3,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            { "id": "feed-convoy-alert", "text": "Ration convoy stalled in South Tunnels. Crowd gathering.", "tone": "critical", "source": "Civic Watch" }
+          ]
+        },
+        "socialHeadline": "Convoy Ambush – Riot Units Deploying",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-gallery-4",
+              "src": "/assets/tweets/tweet4.jpg",
+              "title": "Convoy Ambush",
+              "description": "Civic footage shows barricades in South Tunnels.",
+              "revealedAt": 45
+            }
+          ]
+        },
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            { "id": "2", "clip": "/audio/last-transmission3.mp3" },
+            { "id": "3", "clip": "/audio/last-transmission4.mp3" }
+          ]
+        }
+      },
+      "dashboardClose": {
+        "reportedIncidents": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "inc-convoy-001",
+              "status": "Response En Route",
+              "description": "Suppression teams clearing barricades.",
+              "details": "Expect clearance within 10 minutes."
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-convoy",
+              "status": "Response En Route",
+              "level": "high",
+              "count": 3,
+              "details": "Teams on-scene; flare-ups contained."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1710000030000, "incidents": 9, "recalibrations": 4 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 73.6,
+          "etaSeconds": 900
+        },
+        "implantOperationalRate": 92.7,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            { "id": "feed-convoy-update", "text": "Suppression teams engaged. Expect ration delays.", "tone": "warning" }
+          ]
+        },
+        "socialHeadline": "Suppression Teams Holding Convoy Route",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-gallery-5",
+              "src": "/assets/tweets/tweet5.jpg",
+              "title": "Suppression Teams",
+              "description": "Riot units push through tunnel barricades.",
+              "revealedAt": 70
+            }
+          ]
+        },
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            { "id": "4", "clip": "/audio/last-transmission1.mp3" }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -103,6 +103,350 @@ function sessionLog(session, tag, message, level = "info", meta) {
   return entry;
 }
 
+function ensureDashboardState(session) {
+  if (!session.dashboard) {
+    session.dashboard = {
+      incidentSum: null,
+      recalibrationSum: null,
+      reportedIncidents: [],
+      mapMarkers: [],
+      trendSeries: [],
+      caloricStockpile: null,
+      implantOperationalRate: null,
+      implantAdoptionRate: null,
+      socialFeed: [],
+      socialHeadline: null,
+      tweetGallery: [],
+      radioChannels: [],
+    };
+  }
+  return session.dashboard;
+}
+
+function normalizeIncidentItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const item = { ...raw };
+  const id = typeof item.id === "string" && item.id ? item.id : nanoid(8);
+  const title = typeof item.title === "string" && item.title ? item.title : "Incident";
+  const location = typeof item.location === "string" ? item.location : "";
+  const timeReported = typeof item.timeReported === "string" ? item.timeReported : (typeof item.time === "string" ? item.time : "");
+  const status = typeof item.status === "string" ? item.status : "";
+  const description = typeof item.description === "string" ? item.description : undefined;
+  const emergencyLevel = Number.isFinite(Number(item.emergencyLevel))
+    ? Number(item.emergencyLevel)
+    : (typeof item.level === "string" ? item.level : undefined);
+  const people = Number.isFinite(Number(item.people)) ? Number(item.people) : undefined;
+  const summary = (item.summary && typeof item.summary === "object") ? item.summary
+    : (item._summary && typeof item._summary === "object") ? item._summary
+    : undefined;
+
+  return {
+    id,
+    title,
+    location,
+    timeReported,
+    status,
+    description,
+    emergencyLevel,
+    people,
+    badgeClass: typeof item.badgeClass === "string" ? item.badgeClass : undefined,
+    details: typeof item.details === "string" ? item.details : undefined,
+    _summary: summary,
+  };
+}
+
+function normalizeMarker(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const item = { ...raw };
+  const id = typeof item.id === "string" && item.id ? item.id : nanoid(8);
+  const label = typeof item.label === "string" && item.label
+    ? item.label
+    : typeof item.title === "string" && item.title ? item.title : "Marker";
+  const level = typeof item.level === "string" && item.level
+    ? item.level
+    : typeof item.severity === "string" ? item.severity : "elevated";
+  const status = typeof item.status === "string" ? item.status : undefined;
+  const count = Number.isFinite(Number(item.count)) ? Number(item.count) : undefined;
+  const x = Number.isFinite(Number(item.x)) ? Number(item.x) : undefined;
+  const y = Number.isFinite(Number(item.y)) ? Number(item.y) : undefined;
+  const tooltip = typeof item.tooltip === "string" ? item.tooltip : undefined;
+  const details = typeof item.details === "string" ? item.details : undefined;
+  return { id, label, level, status, count, x, y, tooltip, details };
+}
+
+function normalizeTrendPoint(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const incidents = Number.isFinite(Number(raw.incidents)) ? Number(raw.incidents) : 0;
+  const recalibrations = Number.isFinite(Number(raw.recalibrations)) ? Number(raw.recalibrations) : 0;
+  let t = Number.isFinite(Number(raw.t)) ? Number(raw.t) : null;
+  if (t === null && typeof raw.ts === "string") {
+    const parsed = Date.parse(raw.ts);
+    if (!Number.isNaN(parsed)) t = parsed;
+  }
+  if (t === null) t = Date.now();
+  return { t, incidents, recalibrations };
+}
+
+function normalizeSocialItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return { id: nanoid(6), text: entry };
+      }
+      if (!entry || typeof entry !== "object") return null;
+      const id = typeof entry.id === "string" && entry.id ? entry.id : nanoid(6);
+      const text = typeof entry.text === "string" ? entry.text : null;
+      if (!text) return null;
+      const tone = typeof entry.tone === "string" ? entry.tone : undefined;
+      const source = typeof entry.source === "string" ? entry.source : undefined;
+      return { id, text, tone, source };
+    })
+    .filter(Boolean);
+}
+
+function normalizeTweetItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const item = { ...raw };
+  const id = typeof item.id === "string" && item.id ? item.id : nanoid(8);
+  const src = typeof item.src === "string" && item.src
+    ? item.src
+    : typeof item.image === "string" && item.image
+      ? item.image
+      : null;
+  if (!src) return null;
+  const title = typeof item.title === "string" ? item.title : undefined;
+  const description = typeof item.description === "string" ? item.description : undefined;
+  const revealedAt = Number.isFinite(Number(item.revealedAt)) ? Number(item.revealedAt) : undefined;
+  return { id, src, title, description, revealedAt };
+}
+
+function normalizeRadioChannel(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const item = { ...raw };
+  const id = typeof item.id === "string" && item.id ? item.id : (Number.isFinite(Number(item.id)) ? String(item.id) : null);
+  if (!id) return null;
+  const name = typeof item.name === "string" ? item.name : undefined;
+  const detail = typeof item.detail === "string" ? item.detail : undefined;
+  const clip = typeof item.clip === "string" ? item.clip : undefined;
+  const loop = typeof item.loop === "boolean" ? item.loop : undefined;
+  const txIndex = Number.isFinite(Number(item.txIndex)) ? Number(item.txIndex) : undefined;
+  const volume = Number.isFinite(Number(item.volume)) ? Number(item.volume) : undefined;
+  return { id, name, detail, clip, loop, txIndex, volume };
+}
+
+function mergeList(existing, { mode = "replace", items = [], removeIds = [] }) {
+  const current = Array.isArray(existing) ? [...existing] : [];
+  const normalizedItems = Array.isArray(items) ? items : [];
+  const modeKey = (mode || "replace").toLowerCase();
+  let next = current;
+
+  if (modeKey === "replace") {
+    next = [...normalizedItems];
+  } else if (modeKey === "append") {
+    next = [...current, ...normalizedItems];
+  } else if (modeKey === "prepend") {
+    next = [...normalizedItems, ...current];
+  } else if (modeKey === "upsert") {
+    const map = new Map(current.map((it) => [it.id, it]));
+    for (const item of normalizedItems) {
+      if (!item || !item.id) continue;
+      map.set(item.id, { ...map.get(item.id), ...item });
+    }
+    next = [...map.values()];
+  }
+
+  if (Array.isArray(removeIds) && removeIds.length) {
+    const removeSet = new Set(removeIds);
+    next = next.filter((it) => it && !removeSet.has(it.id));
+  }
+
+  return next;
+}
+
+function applyDashboardPatch(session, patch, options = {}) {
+  if (!session || !patch || typeof patch !== "object") return;
+  const state = ensureDashboardState(session);
+  const broadcast = options.broadcast !== false;
+  const outgoing = {};
+
+  if (patch.incidentSum !== undefined) {
+    const value = Number(patch.incidentSum);
+    if (Number.isFinite(value)) {
+      state.incidentSum = value;
+      outgoing.incidentSum = value;
+    }
+  }
+  if (patch.recalibrationSum !== undefined) {
+    const value = Number(patch.recalibrationSum);
+    if (Number.isFinite(value)) {
+      state.recalibrationSum = value;
+      outgoing.recalibrationSum = value;
+    }
+  }
+
+  if (patch.reportedIncidents) {
+    const cfg = patch.reportedIncidents;
+    const mode = (cfg.mode || "replace").toLowerCase();
+    const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+      .map(normalizeIncidentItem)
+      .filter(Boolean);
+    state.reportedIncidents = mergeList(state.reportedIncidents, {
+      mode,
+      items: normalized,
+      removeIds: cfg.removeIds,
+    });
+    outgoing.reportedIncidents = { mode, items: normalized, removeIds: cfg.removeIds };
+  }
+
+  if (patch.mapMarkers) {
+    const cfg = patch.mapMarkers;
+    const mode = (cfg.mode || "replace").toLowerCase();
+    const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+      .map(normalizeMarker)
+      .filter(Boolean);
+    state.mapMarkers = mergeList(state.mapMarkers, {
+      mode,
+      items: normalized,
+      removeIds: cfg.removeIds,
+    });
+    outgoing.mapMarkers = { mode, items: normalized, removeIds: cfg.removeIds };
+  }
+
+  if (patch.trendSeries) {
+    const cfg = patch.trendSeries;
+    const mode = (cfg.mode || "replace").toLowerCase();
+    const normalized = (Array.isArray(cfg.points) ? cfg.points : [])
+      .map(normalizeTrendPoint)
+      .filter(Boolean);
+    if (mode === "replace") {
+      state.trendSeries = normalized;
+    } else if (mode === "append") {
+      state.trendSeries = [...state.trendSeries, ...normalized];
+    } else if (mode === "prepend") {
+      state.trendSeries = [...normalized, ...state.trendSeries];
+    } else if (mode === "upsert") {
+      const map = new Map(state.trendSeries.map((it) => [it.t, it]));
+      for (const point of normalized) {
+        map.set(point.t, point);
+      }
+      state.trendSeries = [...map.values()].sort((a, b) => a.t - b.t);
+    }
+    const limit = Number.isFinite(Number(cfg.limit)) ? Number(cfg.limit) : 120;
+    if (state.trendSeries.length > limit) {
+      state.trendSeries = state.trendSeries.slice(state.trendSeries.length - limit);
+    }
+    outgoing.trendSeries = { mode, points: normalized };
+  }
+
+  if (patch.caloricStockpile) {
+    const cfg = patch.caloricStockpile;
+    const value = Number(cfg.value);
+    const etaSeconds = cfg.etaSeconds !== undefined ? Number(cfg.etaSeconds) : undefined;
+    const unit = typeof cfg.unit === "string" ? cfg.unit : undefined;
+    const payload = {};
+    if (Number.isFinite(value)) payload.value = value;
+    if (Number.isFinite(etaSeconds)) payload.etaSeconds = etaSeconds;
+    if (unit) payload.unit = unit;
+    if (Object.keys(payload).length) {
+      state.caloricStockpile = { ...state.caloricStockpile, ...payload };
+      outgoing.caloricStockpile = payload;
+    }
+  }
+
+  if (patch.implantOperationalRate !== undefined) {
+    const value = Number(patch.implantOperationalRate);
+    if (Number.isFinite(value)) {
+      state.implantOperationalRate = value;
+      outgoing.implantOperationalRate = value;
+    }
+  }
+  if (patch.implantAdoptionRate !== undefined) {
+    const value = Number(patch.implantAdoptionRate);
+    if (Number.isFinite(value)) {
+      state.implantAdoptionRate = value;
+      outgoing.implantAdoptionRate = value;
+    }
+  }
+
+  if (patch.socialFeed) {
+    const cfg = patch.socialFeed;
+    const mode = (cfg.mode || "replace").toLowerCase();
+    const normalized = normalizeSocialItems(cfg.items);
+    const current = Array.isArray(state.socialFeed) ? state.socialFeed : [];
+    let next = current;
+    if (mode === "replace") next = normalized;
+    else if (mode === "append") next = [...current, ...normalized];
+    else if (mode === "prepend") next = [...normalized, ...current];
+    else if (mode === "upsert") {
+      const map = new Map(current.map((item) => [item.id, item]));
+      for (const item of normalized) {
+        map.set(item.id, { ...map.get(item.id), ...item });
+      }
+      next = [...map.values()];
+    }
+    state.socialFeed = next;
+    outgoing.socialFeed = { mode, items: normalized };
+  }
+
+  if (patch.socialHeadline !== undefined) {
+    const headline = typeof patch.socialHeadline === "string" ? patch.socialHeadline : null;
+    state.socialHeadline = headline;
+    outgoing.socialHeadline = headline;
+  }
+
+  if (patch.tweetGallery) {
+    const cfg = patch.tweetGallery;
+    const mode = (cfg.mode || "replace").toLowerCase();
+    const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+      .map(normalizeTweetItem)
+      .filter(Boolean);
+    state.tweetGallery = mergeList(state.tweetGallery, {
+      mode,
+      items: normalized,
+      removeIds: cfg.removeIds,
+    });
+    outgoing.tweetGallery = { mode, items: normalized, removeIds: cfg.removeIds };
+  }
+
+  if (patch.radioChannels) {
+    const cfg = patch.radioChannels;
+    const mode = (cfg.mode || "upsert").toLowerCase();
+    const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+      .map(normalizeRadioChannel)
+      .filter(Boolean);
+    state.radioChannels = mergeList(state.radioChannels, {
+      mode,
+      items: normalized,
+      removeIds: cfg.removeIds,
+    });
+    outgoing.radioChannels = { mode, items: normalized, removeIds: cfg.removeIds };
+  }
+
+  if (broadcast && Object.keys(outgoing).length) {
+    bcast(session.sockets.ops, { type: "dashboard_patch", patch: outgoing });
+  }
+}
+
+function dashboardSnapshot(session) {
+  if (!session || !session.dashboard) return null;
+  const state = ensureDashboardState(session);
+  return {
+    incidentSum: state.incidentSum,
+    recalibrationSum: state.recalibrationSum,
+    reportedIncidents: { mode: "replace", items: state.reportedIncidents },
+    mapMarkers: { mode: "replace", items: state.mapMarkers },
+    trendSeries: { mode: "replace", points: state.trendSeries },
+    caloricStockpile: state.caloricStockpile,
+    implantOperationalRate: state.implantOperationalRate,
+    implantAdoptionRate: state.implantAdoptionRate,
+    socialFeed: { mode: "replace", items: state.socialFeed },
+    socialHeadline: state.socialHeadline,
+    tweetGallery: { mode: "replace", items: state.tweetGallery },
+    radioChannels: { mode: "replace", items: state.radioChannels },
+  };
+}
+
 /** Aggregate score calc */
 function recomputeAgg(session) {
   const vals = [...session.participants.values()].map(p => p.score || 0);
@@ -147,6 +491,10 @@ function openEventsIfNeeded(session, tSec) {
 
     // schedule auto-close
     setTimeout(() => closeEvent(session, ev.id), Math.max(0, (ev.t + ev.responseWindowSec - tSec) * 1000));
+
+    if (ev.dashboard) {
+      applyDashboardPatch(session, ev.dashboard);
+    }
   }
 }
 
@@ -175,6 +523,10 @@ function closeEvent(session, eventId) {
   bcast(session.sockets.control, { type: "event_close", eventId });
 
   // if last event closed, schedule finale
+  if (ev && ev.dashboardClose) {
+    applyDashboardPatch(session, ev.dashboardClose);
+  }
+
   const allClosed = session.scenario.events.every(e => e._closed);
   if (allClosed) {
     const endDelay = (session.scenario.meta?.endBufferSec ?? 8) * 1000;
@@ -255,6 +607,9 @@ app.post("/api/session", (req, res) => {
     logs: [],
   };
   sessions.set(id, session);
+  if (scenario.dashboard?.initial) {
+    applyDashboardPatch(session, scenario.dashboard.initial, { broadcast: false });
+  }
   sessionLog(session, "SESSION", `Created for scenario '${scenarioId}'`, "system");
   sessionLog(session, "SESSION", `OPS URL: http://localhost:5173/?mode=assessment&session=${id}#/ops`, "system");
   res.json({ sessionId: id });
@@ -392,6 +747,24 @@ app.get("/api/session/:id/leaderboard", (req, res) => {
   res.json(rows);
 });
 
+/** Dashboard patch (allow controllers/admin to push updates) */
+app.post("/api/session/:id/dashboard", (req, res) => {
+  const session = sessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: "SESSION_NOT_FOUND" });
+  const patch = req.body?.patch ?? req.body;
+  if (!patch || typeof patch !== "object") {
+    return res.status(400).json({ error: "INVALID_PATCH" });
+  }
+  applyDashboardPatch(session, patch);
+  sessionLog(
+    session,
+    "DASHBOARD",
+    `Applied dashboard patch (${Object.keys(patch).join(", ")})`,
+    "debug"
+  );
+  res.json({ ok: true });
+});
+
 /** Dev: open a synthetic event immediately (for testing controller -> /input) */
 app.post("/api/session/:id/dev/open", (req, res) => {
   const s = sessions.get(req.params.id);
@@ -487,6 +860,10 @@ wss.on("connection", (ws) => {
           if (ev._opened && !ev._closed) {
             ws.send(JSON.stringify({ type:"event_open", event: ev }));
           }
+        }
+        const snapshot = dashboardSnapshot(session);
+        if (snapshot) {
+          ws.send(JSON.stringify({ type: "dashboard_state", state: snapshot }));
         }
         const history = Array.isArray(session.logs) ? session.logs.slice(-200) : [];
         if (history.length) {

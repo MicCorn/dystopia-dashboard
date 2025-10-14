@@ -118,6 +118,209 @@ function formatConsoleTime(ts) {
   return d.toLocaleTimeString([], { hour12: false });
 }
 
+function mergeCollections(current, { mode = "replace", items = [], removeIds = [] } = {}) {
+  const existing = Array.isArray(current) ? [...current] : [];
+  const normalizedMode = (mode || "replace").toLowerCase();
+  let next;
+
+  if (normalizedMode === "replace") {
+    next = [...items];
+  } else if (normalizedMode === "append") {
+    next = [...existing, ...items];
+  } else if (normalizedMode === "prepend") {
+    next = [...items, ...existing];
+  } else if (normalizedMode === "upsert") {
+    const map = new Map(existing.map((it) => [it?.id, it]));
+    for (const item of items) {
+      if (!item || !item.id) continue;
+      const prev = map.get(item.id) || {};
+      map.set(item.id, { ...prev, ...item });
+    }
+    next = [...map.values()];
+  } else {
+    next = existing;
+  }
+
+  if (Array.isArray(removeIds) && removeIds.length) {
+    const removal = new Set(removeIds);
+    next = next.filter((it) => it && !removal.has(it.id));
+  }
+  return next;
+}
+
+function normalizeIncidentPatch(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const ensureId = () => {
+    try {
+      if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+    } catch {}
+    return `inc-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const id = typeof raw.id === "string" && raw.id ? raw.id : ensureId();
+  const title = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Incident";
+  const location = typeof raw.location === "string" ? raw.location : "";
+  const timeReported = typeof raw.timeReported === "string"
+    ? raw.timeReported
+    : typeof raw.time === "string"
+      ? raw.time
+      : "";
+  const status = typeof raw.status === "string" ? raw.status : "Active";
+  const description = typeof raw.description === "string" ? raw.description : undefined;
+  const emergencyLevel = Number.isFinite(Number(raw.emergencyLevel))
+    ? Number(raw.emergencyLevel)
+    : Number.isFinite(Number(raw.level))
+      ? Number(raw.level)
+      : undefined;
+  const severity = typeof raw.severity === "string" ? raw.severity : undefined;
+  const people = Number.isFinite(Number(raw.people))
+    ? Number(raw.people)
+    : Number.isFinite(Number(raw.peopleCount))
+      ? Number(raw.peopleCount)
+      : undefined;
+  const summary = (raw.summary && typeof raw.summary === "object")
+    ? raw.summary
+    : (raw._summary && typeof raw._summary === "object") ? raw._summary : undefined;
+  const badgeClass = typeof raw.badgeClass === "string" ? raw.badgeClass : undefined;
+  const details = typeof raw.details === "string" ? raw.details : undefined;
+
+  return {
+    id,
+    title,
+    location,
+    timeReported,
+    status,
+    description,
+    emergencyLevel,
+    severity,
+    people,
+    badgeClass,
+    details,
+    _summary: summary,
+  };
+}
+
+function normalizeMarkerPatch(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const ensureId = () => {
+    try {
+      if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+    } catch {}
+    return `mk-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const id = typeof raw.id === "string" && raw.id ? raw.id : ensureId();
+  const label = typeof raw.label === "string" && raw.label
+    ? raw.label
+    : typeof raw.title === "string" && raw.title ? raw.title : "Marker";
+  const level = typeof raw.level === "string"
+    ? raw.level
+    : typeof raw.severity === "string"
+      ? raw.severity
+      : "elevated";
+  const status = typeof raw.status === "string" ? raw.status : undefined;
+  const count = Number.isFinite(Number(raw.count))
+    ? Number(raw.count)
+    : Number.isFinite(Number(raw.weight))
+      ? Number(raw.weight)
+      : undefined;
+  const x = Number.isFinite(Number(raw.x)) ? Number(raw.x) : (Number.isFinite(Number(raw.lon)) ? Number(raw.lon) : undefined);
+  const y = Number.isFinite(Number(raw.y)) ? Number(raw.y) : (Number.isFinite(Number(raw.lat)) ? Number(raw.lat) : undefined);
+  const tooltip = typeof raw.tooltip === "string" ? raw.tooltip : undefined;
+  const details = typeof raw.details === "string" ? raw.details : undefined;
+  return { id, label, level, status, count, x, y, tooltip, details };
+}
+
+function normalizeTrendPointPatch(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const incidents = Number.isFinite(Number(raw.incidents)) ? Number(raw.incidents) : 0;
+  const recalibrations = Number.isFinite(Number(raw.recalibrations)) ? Number(raw.recalibrations) : 0;
+  let t;
+  if (Number.isFinite(Number(raw.t))) {
+    t = Number(raw.t);
+  } else if (Number.isFinite(Number(raw.ts))) {
+    t = Number(raw.ts);
+  } else if (typeof raw.ts === "string") {
+    const parsed = Date.parse(raw.ts);
+    if (!Number.isNaN(parsed)) t = parsed;
+  }
+  if (!Number.isFinite(t)) t = Date.now();
+  return { t, incidents, recalibrations };
+}
+
+function normalizeSocialFeedItems(rawItems) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return { id: crypto.randomUUID?.() ?? `feed-${Math.random().toString(36).slice(2, 10)}`, text: entry };
+      }
+      if (!entry || typeof entry !== "object") return null;
+      const id = typeof entry.id === "string" && entry.id
+        ? entry.id
+        : crypto.randomUUID?.() ?? `feed-${Math.random().toString(36).slice(2, 10)}`;
+      const text = typeof entry.text === "string" ? entry.text : typeof entry.message === "string" ? entry.message : null;
+      if (!text) return null;
+      const tone = typeof entry.tone === "string" ? entry.tone : undefined;
+      const source = typeof entry.source === "string" ? entry.source : undefined;
+      return { id, text, tone, source };
+    })
+    .filter(Boolean);
+}
+
+function incidentSeverityTone(incident) {
+  const severityRaw = incident?.severity ?? incident?.level ?? incident?.emergencyLevel;
+  const severity =
+    typeof severityRaw === "string"
+      ? severityRaw.toLowerCase()
+      : Number.isFinite(Number(severityRaw))
+        ? Number(severityRaw)
+        : null;
+
+  if (severity === 1 || severity === "critical" || severity === "level1" || severity === "level-1") {
+    return { tone: "bg-red-500/20 text-red-200 border-red-400/40", label: "Level 1 · Critical" };
+  }
+  if (severity === 2 || severity === "high" || severity === "severe" || severity === "level2") {
+    return { tone: "bg-orange-500/20 text-orange-200 border-orange-400/40", label: "Level 2 · High" };
+  }
+  if (severity === 3 || severity === "moderate" || severity === "elevated" || severity === "level3") {
+    return { tone: "bg-yellow-500/20 text-yellow-200 border-yellow-400/40", label: "Level 3 · Moderate" };
+  }
+  return { tone: "bg-cyan-500/20 text-cyan-200 border-cyan-400/40", label: "Advisory" };
+}
+
+function markerToneClasses(level) {
+  const tone = (level || "").toString().toLowerCase();
+  if (tone === "critical") return { dot: "bg-red-500", ring: "ring-red-300/60" };
+  if (tone === "high" || tone === "severe") return { dot: "bg-orange-400", ring: "ring-orange-300/60" };
+  if (tone === "moderate" || tone === "elevated" || tone === "medium") return { dot: "bg-yellow-400", ring: "ring-yellow-300/60" };
+  if (tone === "low" || tone === "info") return { dot: "bg-cyan-400", ring: "ring-cyan-300/60" };
+  return { dot: "bg-cyan-400", ring: "ring-cyan-300/60" };
+}
+
+function normalizeTweetPatch(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = typeof raw.id === "string" && raw.id ? raw.id : (typeof raw.src === "string" ? raw.src : `tweet-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)}`);
+  const src = typeof raw.src === "string" && raw.src ? raw.src : (typeof raw.image === "string" ? raw.image : null);
+  if (!src) return null;
+  const title = typeof raw.title === "string" ? raw.title : undefined;
+  const description = typeof raw.description === "string" ? raw.description : undefined;
+  const revealedAt = Number.isFinite(Number(raw.revealedAt)) ? Number(raw.revealedAt) : undefined;
+  return { id, src, title, description, revealedAt };
+}
+
+function normalizeRadioChannelPatch(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const idValue = raw.id ?? raw.channelId;
+  const id = typeof idValue === "string" && idValue ? idValue : (Number.isFinite(Number(idValue)) ? String(idValue) : null);
+  if (!id) return null;
+  const name = typeof raw.name === "string" ? raw.name : undefined;
+  const detail = typeof raw.detail === "string" ? raw.detail : undefined;
+  const clip = typeof raw.clip === "string" ? raw.clip : undefined;
+  const loop = typeof raw.loop === "boolean" ? raw.loop : undefined;
+  const txIndex = Number.isFinite(Number(raw.txIndex)) ? Number(raw.txIndex) : undefined;
+  const volume = Number.isFinite(Number(raw.volume)) ? Number(raw.volume) : undefined;
+  return { id, name, detail, clip, loop, txIndex, volume };
+}
+
 function useClock() {
   const [t, setT] = useState(new Date());
   useEffect(() => {
@@ -241,10 +444,10 @@ const SOCIAL_FEED_ITEMS = [
 ];
 
 const RADIO_CHANNELS = [
-  { id: 1, name: "Channel 1", detail: "Dispatch Net", txIndex: 1 },
-  { id: 2, name: "Channel 2", detail: "Field Ops Loop", txIndex: 2 },
-  { id: 3, name: "Channel 3", detail: "Sector Command", txIndex: 3 },
-  { id: 4, name: "Channel 4", detail: "Relief Corridor", txIndex: 4 },
+  { id: "1", name: "Channel 1", detail: "Dispatch Net", txIndex: 1 },
+  { id: "2", name: "Channel 2", detail: "Field Ops Loop", txIndex: 2 },
+  { id: "3", name: "Channel 3", detail: "Sector Command", txIndex: 3 },
+  { id: "4", name: "Channel 4", detail: "Relief Corridor", txIndex: 4 },
 ];
 
 const CCTV_FEEDS = [
@@ -843,19 +1046,41 @@ function HotspotMap({ alerts, heightClass = "h-[34rem]" }) {
       </svg>
 
       {/* Alert points: 1:1 with alerts provided */}
-      {alerts.map((a) => (
-        <motion.div
-          key={a.id}
-          className={`absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ${a.level === 'critical' ? 'bg-red-500 ring-red-300/60' : a.level === 'high' ? 'bg-orange-400 ring-orange-300/60' : a.level === 'elevated' ? 'bg-yellow-400 ring-yellow-300/60' : 'bg-cyan-400 ring-cyan-300/60'}`}
-          style={{ left: `${a.x ?? 50}%`, top: `${a.y ?? 50}%` }}
-          animate={{ scale: [1, 1.5, 1] }}
-          transition={{ duration: 1.6, repeat: Infinity }}
-        >
-          <div className="absolute left-1/2 top-5 -translate-x-1/2 whitespace-nowrap text-[10px] px-1.5 py-0.5 rounded bg-black/60 border border-white/10 text-white/80 backdrop-blur">
-            {a.label}
-          </div>
-        </motion.div>
-      ))}
+      {alerts.map((a) => {
+        const tone = markerToneClasses(a.level || a.severity);
+        const count = Number.isFinite(Number(a.count)) ? Number(a.count) : 1;
+        const size = Math.max(12, Math.min(30, 10 + Math.max(1, count) * 3));
+        const isActive = typeof a.status === "string" && a.status.toLowerCase() === "active";
+        const left = Math.max(0, Math.min(100, Number(a.x ?? 50)));
+        const top = Math.max(0, Math.min(100, Number(a.y ?? 50)));
+        const tooltipOffset = size / 2 + 6;
+        const tooltipText = (() => {
+          if (typeof a.tooltip === "string" && a.tooltip.trim()) return a.tooltip;
+          const lines = [
+            a.label,
+            a.status ? `Status: ${a.status}` : null,
+            count > 1 ? `${count} incidents` : null,
+            a.details || null,
+          ].filter(Boolean);
+          return lines.join(" • ");
+        })();
+        return (
+          <motion.div
+            key={a.id}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 shadow-lg shadow-black/40 ${tone.dot} ${tone.ring}`}
+            style={{ left: `${left}%`, top: `${top}%`, width: `${size}px`, height: `${size}px` }}
+            animate={isActive ? { scale: [1, 1.6, 1], opacity: [0.8, 1, 0.8] } : { scale: [1, 1.08, 1], opacity: [0.85, 0.95, 0.85] }}
+            transition={isActive ? { duration: 1.6, repeat: Infinity } : { duration: 2.4, repeat: Infinity }}
+          >
+            <div
+              className="absolute whitespace-nowrap rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white/80 backdrop-blur border border-white/10"
+              style={{ left: "50%", top: `${tooltipOffset}px`, transform: "translate(-50%, 0)" }}
+            >
+              {tooltipText || a.label}
+            </div>
+          </motion.div>
+        );
+      })}
 
       <div className="absolute bottom-2 right-3 text-xs text-white/60">Map feed: Security Sector C</div>
     </div>
@@ -1118,24 +1343,46 @@ function ReportedIncidents({ incidents, onSelect }) {
             {incidents.length === 0 && (
               <div className="text-sm text-white/50">No incidents yet.</div>
             )}
-            {incidents.map((it) => (
-              <button
-                key={it.id}
-                onClick={() => onSelect?.(it)}
-                className="w-full text-left p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-white/90 font-medium text-sm">{it.title}</div>
-                    <div className="mt-1 text-xs text-white/70 flex items-center gap-2">
-                      <MapPin className="w-3 h-3"/> {it.location}
+            {incidents.map((it) => {
+              const severity = incidentSeverityTone(it);
+              const peopleCount = Number.isFinite(Number(it.people)) ? Number(it.people) : null;
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => onSelect?.(it)}
+                  className="w-full text-left p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="text-white/90 font-medium text-sm leading-tight">{it.title}</div>
+                      <div className="flex items-center gap-2 text-xs text-white/70">
+                        <MapPin className="w-3 h-3" /> {it.location || "Unknown location"}
+                      </div>
+                      <div className="text-xs text-white/60">
+                        Reported <span className="font-mono text-white/70">{it.timeReported || "—"}</span>
+                      </div>
+                      {it.description && (
+                        <div className="text-xs text-white/60 leading-snug">{it.description}</div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/60">
+                        {severity && (
+                          <Badge className={`${severity.tone} border ${severity.tone?.includes("border") ? "" : "border-white/15"} text-[10px] font-semibold uppercase tracking-wide`}>
+                            {severity.label}
+                          </Badge>
+                        )}
+                        {peopleCount !== null && (
+                          <span>{peopleCount} affected</span>
+                        )}
+                        {it.details && <span className="text-white/50">{it.details}</span>}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-white/60">Time Reported: {it.timeReported}</div>
+                    <Badge className={it.badgeClass ? it.badgeClass : "bg-white/10 border-white/20 text-white/80 whitespace-nowrap"}>
+                      {it.status || "Pending"}
+                    </Badge>
                   </div>
-                  <Badge className={it.badgeClass ? it.badgeClass : "bg-white/10 border-white/20 text-white/80"}>{it.status}</Badge>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </ScrollArea>
       </CardContent>
@@ -1143,21 +1390,53 @@ function ReportedIncidents({ incidents, onSelect }) {
   );
 }
 
-function SocialTicker() {
-  const feed = SOCIAL_FEED_ITEMS;
-
+function SocialTicker({ items, headline }) {
+  const fallback = useMemo(
+    () => SOCIAL_FEED_ITEMS.map((text, idx) => ({ id: `seed-${idx}`, text })),
+    []
+  );
+  const feed = Array.isArray(items) && items.length
+    ? items.map((entry, idx) => {
+        if (typeof entry === "string") return { id: `feed-${idx}`, text: entry };
+        if (!entry || typeof entry !== "object") return null;
+        return {
+          id: entry.id ?? `feed-${idx}`,
+          text: entry.text ?? entry.message ?? "",
+          tone: entry.tone,
+          source: entry.source,
+        };
+      }).filter((entry) => entry && entry.text)
+    : fallback;
   return (
     <div className="relative overflow-hidden whitespace-nowrap rounded-2xl border border-white/10 bg-neutral-900">
-      <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-neutral-900 to-transparent pointer-events-none z-10"/>
+      {headline && (
+        <div className="absolute inset-y-0 left-0 z-20 flex items-center bg-emerald-500/10 px-3 text-xs font-semibold uppercase tracking-[0.35em] text-emerald-200 border-r border-emerald-400/40 backdrop-blur">
+          {headline}
+        </div>
+      )}
+      <div className={`absolute inset-y-0 left-0 ${headline ? "ml-28" : ""} w-20 bg-gradient-to-r from-neutral-900 to-transparent pointer-events-none z-10`} />
       <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-neutral-900 to-transparent pointer-events-none z-10"/>
       <motion.div
         className="py-2 inline-block will-change-transform"
         animate={{ x: [0, -1200] }}
         transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
       >
-        {feed.concat(feed).map((t, i) => (
-          <span key={i} className="mx-6 text-sm text-white/80">{t}</span>
-        ))}
+        {feed.concat(feed).map((entry, idx) => {
+          const toneClass = (() => {
+            const tone = (entry.tone || "").toLowerCase();
+            if (tone === "alert" || tone === "warning") return "text-amber-300";
+            if (tone === "critical") return "text-red-300";
+            if (tone === "info") return "text-cyan-300";
+            if (tone === "success") return "text-emerald-300";
+            return "text-white/80";
+          })();
+          return (
+            <span key={`${entry.id ?? idx}-${idx}`} className={`mx-6 text-sm ${toneClass}`}>
+              {entry.text}
+              {entry.source ? <span className="ml-2 text-xs uppercase tracking-widest text-white/40">[{entry.source}]</span> : null}
+            </span>
+          );
+        })}
       </motion.div>
     </div>
   );
@@ -1670,6 +1949,7 @@ function ControlPanel() {
 function HungerCrisisDashboard() {
   const clock = useClock();
   const assessmentSessionId = ASSESSMENT_SESSION_ID;
+  const isAssessment = IS_ASSESSMENT_MODE;
   const [view, setView] = useState(getViewFromHash());
   useEffect(() => {
     const onHash = () => setView(getViewFromHash());
@@ -1705,7 +1985,7 @@ function HungerCrisisDashboard() {
       const res = await fetch('http://localhost:8787/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId: 'sector-c-ops-01' }),
+        body: JSON.stringify({ scenarioId: 'dashboard-patch-test' }),
       });
       if (!res.ok) {
         throw new Error(`Failed to create session (${res.status})`);
@@ -1740,12 +2020,27 @@ function HungerCrisisDashboard() {
   const isConnectingRef = useRef(false);
   // Ref for the randomized alert timer
   const randomTimerRef = useRef(null);
-  const series = useTimeSeries(24, 5000);
+  const localSeries = useTimeSeries(24, 5000);
+  const [assessmentSeries, setAssessmentSeries] = useState(null);
+  const [assessmentIncidentSum, setAssessmentIncidentSum] = useState(null);
+  const [assessmentRecalibrationSum, setAssessmentRecalibrationSum] = useState(null);
+  const [dashboardMarkers, setDashboardMarkers] = useState(null);
+  const [assessmentTickerItems, setAssessmentTickerItems] = useState(null);
+  const [socialHeadline, setSocialHeadline] = useState(null);
+  const [assessmentAdoptionRate, setAssessmentAdoptionRate] = useState(null);
+  const [assessmentOperationalRate, setAssessmentOperationalRate] = useState(null);
+  const [stockUnit, setStockUnit] = useState("%");
+  const [stockLevel, setStockLevel] = useState(42);            // demo value; wire to data if you have it
+  const [etaSeconds, setEtaSeconds] = useState(15 * 60); // 15 minutes
+  const [tweetGallery, setTweetGallery] = useState(null);
+  const [radioChannels, setRadioChannels] = useState(() => RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) })));
+  const radioAudioRefs = useRef(new Map());
+  const series = isAssessment ? (assessmentSeries ?? localSeries) : localSeries;
 
   // Push-to-talk state
   const [txStatus, setTxStatus] = useState('idle'); // 'idle' | 'live' | 'sending'
   const [txIndex, setTxIndex] = useState(1); // 1..4 for /audio/last-transmission[1-4].mp3
-  const [activeChannel, setActiveChannel] = useState(RADIO_CHANNELS[0]?.id ?? 1);
+  const [activeChannel, setActiveChannel] = useState(String(RADIO_CHANNELS[0]?.id ?? 1));
   const txResetRef = useRef(null);
 
   // Population counters
@@ -1768,18 +2063,30 @@ function HungerCrisisDashboard() {
     return () => { cancelled = true; clearTimeout(sectorTimerRef.current); };
   }, []);
 
-  // ===== Assessment Mode (server-driven) =====
-  const isAssessment = IS_ASSESSMENT_MODE;
-
   const [serverEvents, setServerEvents] = useState([]); // live events from server (open but not closed)
   const serverEventsRef = useRef(new Map()); // id -> event snapshot
   const [serverLogEntries, setServerLogEntries] = useState([]);
   const serverLogScrollRef = useRef(null);
   const serverLogCountRef = useRef(0);
-  const visibleServerLogEntries = useMemo(
-    () => serverLogEntries.slice(-SERVER_CONSOLE_VISIBLE_LIMIT),
-    [serverLogEntries]
-  );
+  const visibleServerLogLines = useMemo(() => {
+    if (!serverLogEntries.length) return [];
+    const lines = [];
+    for (let i = serverLogEntries.length - 1; i >= 0 && lines.length < SERVER_CONSOLE_VISIBLE_LIMIT; i -= 1) {
+      const entry = serverLogEntries[i];
+      const segments = String(entry.message ?? "").split(/\r?\n/);
+      for (let j = segments.length - 1; j >= 0 && lines.length < SERVER_CONSOLE_VISIBLE_LIMIT; j -= 1) {
+        lines.push({
+          id: j === 0 ? entry.id : `${entry.id}:${j}`,
+          ts: entry.ts,
+          tag: entry.tag,
+          level: entry.level,
+          message: segments[j],
+          isContinuation: j !== 0,
+        });
+      }
+    }
+    return lines.reverse();
+  }, [serverLogEntries]);
   useEffect(() => {
     if (!isAssessment) return;
     serverEventsRef.current = new Map();
@@ -1788,13 +2095,29 @@ function HungerCrisisDashboard() {
     serverLogCountRef.current = 0;
   }, [isAssessment, assessmentSessionId]);
   useEffect(() => {
+    const resetChannels = () => RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) }));
+    if (!isAssessment) {
+      setTweetGallery(null);
+      setRadioChannels(resetChannels());
+      setActiveChannel(String(RADIO_CHANNELS[0]?.id ?? 1));
+      setTxIndex(RADIO_CHANNELS[0]?.txIndex ?? 1);
+      return;
+    }
+    if (assessmentSessionId) {
+      setTweetGallery(null);
+      setRadioChannels(resetChannels());
+      setActiveChannel(String(RADIO_CHANNELS[0]?.id ?? 1));
+      setTxIndex(RADIO_CHANNELS[0]?.txIndex ?? 1);
+    }
+  }, [isAssessment, assessmentSessionId]);
+  useEffect(() => {
     if (!isAssessment) return;
     const container = serverLogScrollRef.current;
     if (!container) return;
-    if (visibleServerLogEntries.length === serverLogCountRef.current) return;
-    serverLogCountRef.current = visibleServerLogEntries.length;
+    if (visibleServerLogLines.length === serverLogCountRef.current) return;
+    serverLogCountRef.current = visibleServerLogLines.length;
     container.scrollTop = container.scrollHeight;
-  }, [isAssessment, visibleServerLogEntries]);
+  }, [isAssessment, visibleServerLogLines]);
   const [algoText, setAlgoText] = useState("");         // THE ALGORITHM latest line
   const [assessmentFinal, setAssessmentFinal] = useState(false);
   const [leaderboardEntries, setLeaderboardEntries] = useState([]);
@@ -2158,6 +2481,27 @@ function HungerCrisisDashboard() {
     };
   }, [scheduleCarouselRotation, clearCarouselTimer]);
 
+  useEffect(() => {
+    return () => {
+      radioAudioRefs.current.forEach((audio) => {
+        try {
+          audio.pause();
+        } catch {}
+      });
+      radioAudioRefs.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (soundOn) return;
+    radioAudioRefs.current.forEach((audio) => {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {}
+    });
+  }, [soundOn]);
+
   const handleSelectAd = useCallback((index) => {
     if (!totalPublicImages) return;
     setSelectedAd(((index % totalPublicImages) + totalPublicImages) % totalPublicImages);
@@ -2189,7 +2533,18 @@ function HungerCrisisDashboard() {
 
   const setSelectedIncidentSafe = useCallback((it) => setSelectedIncident(it), []);
 
+  useEffect(() => {
+    if (!selectedIncident) return;
+    const next = incidents.find((it) => it?.id === selectedIncident.id);
+    if (!next) {
+      setSelectedIncident(null);
+    } else if (next !== selectedIncident) {
+      setSelectedIncident(next);
+    }
+  }, [incidents, selectedIncident]);
+
   const addIncidentFromAlert = useCallback((a, meta = {}) => {
+    if (isAssessment) return;
     if (!a || !a.id) return;
     // avoid duplicates if the same alert is processed via multiple paths
     if (convertedIdsRef.current.has(a.id)) return;
@@ -2218,7 +2573,7 @@ function HungerCrisisDashboard() {
 
     convertedIdsRef.current.add(a.id);
     setIncidents((prev) => [inc, ...prev]);
-  }, []);
+  }, [isAssessment]);
 
 const pushAlert = useCallback((a) => {
   // Route critical alerts to the blocking modal queue
@@ -2358,6 +2713,158 @@ const pushAlert = useCallback((a) => {
     };
   }
 
+  const applyDashboardPatch = useCallback((patch) => {
+    if (!isAssessment || !patch || typeof patch !== "object") return;
+
+    if (patch.incidentSum !== undefined) {
+      const value = Number(patch.incidentSum);
+      if (Number.isFinite(value)) setAssessmentIncidentSum(value);
+    }
+    if (patch.recalibrationSum !== undefined) {
+      const value = Number(patch.recalibrationSum);
+      if (Number.isFinite(value)) setAssessmentRecalibrationSum(value);
+    }
+
+    if (patch.reportedIncidents) {
+      const cfg = patch.reportedIncidents;
+      const mode = (cfg.mode || "replace").toLowerCase();
+      const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+        .map(normalizeIncidentPatch)
+        .filter(Boolean);
+      setIncidents((prev) => mergeCollections(prev, { mode, items: normalized, removeIds: cfg.removeIds }));
+    }
+
+    if (patch.mapMarkers) {
+      const cfg = patch.mapMarkers;
+      const mode = (cfg.mode || "replace").toLowerCase();
+      const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+        .map(normalizeMarkerPatch)
+        .filter(Boolean);
+      setDashboardMarkers((prev) => mergeCollections(prev ?? [], { mode, items: normalized, removeIds: cfg.removeIds }));
+    }
+
+    if (patch.trendSeries) {
+      const cfg = patch.trendSeries;
+      const mode = (cfg.mode || "replace").toLowerCase();
+      const normalized = (Array.isArray(cfg.points) ? cfg.points : [])
+        .map(normalizeTrendPointPatch)
+        .filter(Boolean);
+      setAssessmentSeries((prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        let next = base;
+        if (mode === "replace") {
+          next = normalized;
+        } else if (mode === "append") {
+          next = [...base, ...normalized];
+        } else if (mode === "prepend") {
+          next = [...normalized, ...base];
+        } else if (mode === "upsert") {
+          const map = new Map(base.map((pt) => [pt.t, pt]));
+          for (const point of normalized) {
+            map.set(point.t, point);
+          }
+          next = Array.from(map.values()).sort((a, b) => a.t - b.t);
+        }
+        const limit = Number.isFinite(Number(cfg.limit)) ? Number(cfg.limit) : 120;
+        if (next.length > limit) {
+          next = next.slice(next.length - limit);
+        }
+        return next;
+      });
+    }
+
+    if (patch.caloricStockpile) {
+      const cfg = patch.caloricStockpile;
+      if (cfg.value !== undefined) {
+        const value = Number(cfg.value);
+        if (Number.isFinite(value)) setStockLevel(value);
+      }
+      if (cfg.etaSeconds !== undefined) {
+        const eta = Number(cfg.etaSeconds);
+        if (Number.isFinite(eta)) setEtaSeconds(Math.max(0, Math.round(eta)));
+      }
+      if (cfg.unit !== undefined && typeof cfg.unit === "string") {
+        setStockUnit(cfg.unit);
+      }
+    }
+
+    if (patch.implantAdoptionRate !== undefined) {
+      const value = Number(patch.implantAdoptionRate);
+      if (Number.isFinite(value)) setAssessmentAdoptionRate(value);
+    }
+    if (patch.implantOperationalRate !== undefined) {
+      const value = Number(patch.implantOperationalRate);
+      if (Number.isFinite(value)) setAssessmentOperationalRate(value);
+    }
+
+    if (patch.socialFeed) {
+      const cfg = patch.socialFeed;
+      const mode = (cfg.mode || "replace").toLowerCase();
+      const normalized = normalizeSocialFeedItems(cfg.items);
+      setAssessmentTickerItems((prev) =>
+        mergeCollections(prev ?? [], { mode, items: normalized, removeIds: cfg.removeIds })
+      );
+    }
+
+    if (patch.socialHeadline !== undefined) {
+      const headline = typeof patch.socialHeadline === "string" ? patch.socialHeadline : null;
+      setSocialHeadline(headline);
+    }
+
+    if (patch.tweetGallery) {
+      const cfg = patch.tweetGallery;
+      const mode = (cfg.mode || "replace").toLowerCase();
+      const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+        .map(normalizeTweetPatch)
+        .filter(Boolean);
+      setTweetGallery((prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        const merged = mergeCollections(base, { mode, items: normalized, removeIds: cfg.removeIds });
+        const sorted = [...merged];
+        sorted.sort((a, b) => {
+          const at = Number.isFinite(Number(a?.revealedAt)) ? Number(a.revealedAt) : Infinity;
+          const bt = Number.isFinite(Number(b?.revealedAt)) ? Number(b.revealedAt) : Infinity;
+          if (at === bt) return 0;
+          return at - bt;
+        });
+        return sorted;
+      });
+    }
+
+    if (patch.radioChannels) {
+      const cfg = patch.radioChannels;
+      const mode = (cfg.mode || "upsert").toLowerCase();
+      const normalized = (Array.isArray(cfg.items) ? cfg.items : [])
+        .map(normalizeRadioChannelPatch)
+        .filter(Boolean);
+      setRadioChannels((prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        const merged = mergeCollections(base, { mode, items: normalized, removeIds: cfg.removeIds });
+        return merged.map((entry) => {
+          const defaults = RADIO_CHANNELS.find((c) => String(c.id) === String(entry.id));
+          const combined = defaults ? { ...defaults, ...entry } : entry;
+          return { ...combined, id: String(combined.id ?? entry.id ?? (defaults?.id ?? '')) };
+        });
+      });
+    }
+  }, [
+    isAssessment,
+    setAssessmentIncidentSum,
+    setAssessmentRecalibrationSum,
+    setIncidents,
+    setDashboardMarkers,
+    setAssessmentSeries,
+    setStockLevel,
+    setEtaSeconds,
+    setStockUnit,
+    setAssessmentAdoptionRate,
+    setAssessmentOperationalRate,
+    setAssessmentTickerItems,
+    setSocialHeadline,
+    setTweetGallery,
+    setRadioChannels,
+  ]);
+
   // Remote WebSocket: receive alerts from server
   useEffect(() => {
     function connectOPS() {
@@ -2415,6 +2922,14 @@ const pushAlert = useCallback((a) => {
                 }
                 return next;
               });
+              return;
+            }
+            if (msg.type === "dashboard_patch" && msg.patch) {
+              applyDashboardPatch(msg.patch);
+              return;
+            }
+            if (msg.type === "dashboard_state" && msg.state) {
+              applyDashboardPatch(msg.state);
               return;
             }
             if (msg.type === "event_open" && msg.event) {
@@ -2477,17 +2992,48 @@ const pushAlert = useCallback((a) => {
       wsRef.current = null;
       isConnectingRef.current = false;
     };
-  }, [isAssessment, assessmentSessionId, pushAlert]);
+  }, [isAssessment, assessmentSessionId, pushAlert, applyDashboardPatch]);
 
   // Map data: all live alerts plus current critical (with coordinates)
   const mapAlerts = useMemo(() => {
     if (isAssessment) {
-      return serverEvents.map(a => ({ id: a.id, level: a.level, label: a.label, x: a.x, y: a.y }));
+      if (dashboardMarkers !== null) {
+        const merged = new Map();
+        for (const marker of dashboardMarkers) {
+          if (!marker?.id) continue;
+          merged.set(marker.id, marker);
+        }
+        for (const event of serverEvents) {
+          if (!event?.id) continue;
+          const existing = merged.get(event.id);
+          merged.set(event.id, existing ? { ...event, ...existing } : event);
+        }
+        return Array.from(merged.values());
+      }
+      return serverEvents.map((a) => ({
+        id: a.id,
+        level: a.level,
+        label: a.label,
+        x: a.x,
+        y: a.y,
+        status: a.status,
+        count: a.count,
+        details: a.details,
+      }));
     }
     const live = [...alerts];
     if (currentCritical) live.unshift(currentCritical);
-    return live.map(a => ({ id: a.id, level: a.level, label: a.label, x: a.x, y: a.y }));
-  }, [isAssessment, serverEvents, alerts, currentCritical]);
+    return live.map((a) => ({
+      id: a.id,
+      level: a.level,
+      label: a.label,
+      x: a.x,
+      y: a.y,
+      status: a.status,
+      count: a.count,
+      details: a.details,
+    }));
+  }, [isAssessment, dashboardMarkers, serverEvents, alerts, currentCritical]);
 
   const leaderboardRows = useMemo(() => {
     const rows = leaderboardEntries.map((entry, idx) => ({
@@ -2504,24 +3050,36 @@ const pushAlert = useCallback((a) => {
   }, [leaderboardEntries, typedNames]);
 
   // Derived stats
-  const totals = useMemo(() => {
+  const seriesTotals = useMemo(() => {
     const inc = series.reduce((s, d) => s + d.incidents, 0);
     const rec = series.reduce((s, d) => s + d.recalibrations, 0);
     return { inc, rec };
   }, [series]);
+  const totals = useMemo(() => {
+    const incCandidate = Number(assessmentIncidentSum);
+    const recCandidate = Number(assessmentRecalibrationSum);
+    const inc = isAssessment && Number.isFinite(incCandidate) ? incCandidate : seriesTotals.inc;
+    const rec = isAssessment && Number.isFinite(recCandidate) ? recCandidate : seriesTotals.rec;
+    return { inc, rec };
+  }, [isAssessment, seriesTotals, assessmentIncidentSum, assessmentRecalibrationSum]);
 
-  const adoptionRate = 86 + Math.round(Math.random() * 2); // playful drift
-  const implantOperationalRate = 92 + Math.round(Math.random() * 3);
-  const [stockLevel] = useState(42);            // demo value; wire to data if you have it
-  const [etaSeconds, setEtaSeconds] = useState(15 * 60); // 15 minutes
+  const [baseAdoptionRate] = useState(() => 86 + Math.round(Math.random() * 2)); // playful drift
+  const [baseImplantOperationalRate] = useState(() => 92 + Math.round(Math.random() * 3));
+  const adoptionRate = isAssessment && Number.isFinite(Number(assessmentAdoptionRate))
+    ? Number(assessmentAdoptionRate)
+    : baseAdoptionRate;
+  const implantOperationalRate = isAssessment && Number.isFinite(Number(assessmentOperationalRate))
+    ? Number(assessmentOperationalRate)
+    : baseImplantOperationalRate;
 
   useEffect(() => {
+    if (isAssessment) return;
     if (etaSeconds <= 0) return;               // stop at 0
     const id = setInterval(() => {
       setEtaSeconds((s) => (s > 0 ? s - 1 : 0));
     }, 1000);
     return () => clearInterval(id);
-  }, [etaSeconds]);
+  }, [etaSeconds, isAssessment]);
 
   useEffect(() => {
     return () => {
@@ -2545,19 +3103,74 @@ const pushAlert = useCallback((a) => {
   const incidentHighlights = useMemo(() => incidents.slice(0, 2), [incidents]);
   const recentDecisions = useMemo(() => auditLog.slice(0, 3), [auditLog]);
   const alertHighlights = useMemo(() => alerts.slice(0, 5), [alerts]);
-  const socialTweetImages = useMemo(
-    () => Array.from({ length: 7 }, (_, idx) => `/assets/tweets/tweet${idx + 1}.jpg`),
+  const defaultTweetGallery = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, idx) => ({
+        id: `tweet-${idx + 1}`,
+        src: `/assets/tweets/tweet${idx + 1}.jpg`,
+        title: `Signal ${idx + 1}`,
+      })),
     []
   );
-  const activeChannelMeta = RADIO_CHANNELS.find((c) => c.id === activeChannel);
+  const socialTickerItems = isAssessment ? (assessmentTickerItems ?? []) : undefined;
+  const socialTickerHeadline = isAssessment ? socialHeadline : null;
+  const mediaTweetItems = useMemo(() => {
+    if (isAssessment) {
+      return Array.isArray(tweetGallery) ? tweetGallery : [];
+    }
+    return defaultTweetGallery;
+  }, [isAssessment, tweetGallery, defaultTweetGallery]);
+  const radioChannelList = useMemo(() => {
+    if (isAssessment) {
+      if (Array.isArray(radioChannels) && radioChannels.length) {
+        return radioChannels;
+      }
+      return RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) }));
+    }
+    return RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) }));
+  }, [isAssessment, radioChannels]);
+  const activeChannelMeta = useMemo(
+    () => radioChannelList.find((c) => c.id === activeChannel),
+    [radioChannelList, activeChannel]
+  );
+  const stopAllRadioClips = useCallback(() => {
+    radioAudioRefs.current.forEach((audio) => {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {}
+    });
+  }, []);
+  const playChannelClip = useCallback((channel) => {
+    if (!channel?.clip) return;
+    stopAllRadioClips();
+    const key = channel.clip;
+    let audio = radioAudioRefs.current.get(key);
+    if (!audio) {
+      audio = new Audio(channel.clip);
+      audio.preload = "auto";
+      radioAudioRefs.current.set(key, audio);
+    }
+    audio.loop = !!channel.loop;
+    if (Number.isFinite(Number(channel.volume))) {
+      audio.volume = Math.max(0, Math.min(1, Number(channel.volume)));
+    }
+    audio.currentTime = 0;
+    audio.play().catch((err) => {
+      console.warn("Radio clip playback failed", err);
+    });
+  }, [stopAllRadioClips]);
   const handlePushToTalk = useCallback(() => {
     if (txResetRef.current) clearTimeout(txResetRef.current);
     setTxStatus('sending');
     if (activeChannelMeta?.txIndex) {
       setTxIndex(activeChannelMeta.txIndex);
     }
+    if (soundOn) {
+      playChannelClip(activeChannelMeta);
+    }
     txResetRef.current = setTimeout(() => setTxStatus('idle'), 1200);
-  }, [activeChannelMeta]);
+  }, [activeChannelMeta, playChannelClip, soundOn]);
 
   if (view === 'control') {
     return <ControlPanel />;
@@ -2614,23 +3227,31 @@ const pushAlert = useCallback((a) => {
                   <CardContent className="flex-1 min-h-0 overflow-hidden">
                     <ScrollArea className="h-full max-h-[32rem] pr-2">
                       <div className="flex flex-col gap-3">
-                        {socialTweetImages.map((src, idx) => (
-                          <div
-                            key={src}
-                            className="rounded-xl border border-white/10 bg-black/40 px-3 pt-3 pb-2"
-                          >
-                            <div className="text-[11px] uppercase tracking-wide text-white/40 mb-2">
-                              Signal {idx + 1}
+                        {mediaTweetItems.map((item, idx) => {
+                          const label = item.title || `Signal ${idx + 1}`;
+                          return (
+                            <div
+                              key={item.id ?? `${item.src}-${idx}`}
+                              className="rounded-xl border border-white/10 bg-black/40 px-3 pt-3 pb-2"
+                            >
+                              <div className="text-[11px] uppercase tracking-wide text-white/40 mb-2">
+                                {label}
+                              </div>
+                              <div className="overflow-hidden rounded-lg border border-white/10 bg-black">
+                                <img
+                                  src={item.src}
+                                  alt={label}
+                                  className="w-full h-auto object-cover"
+                                />
+                              </div>
+                              {item.description && (
+                                <div className="mt-2 text-[11px] text-white/50 leading-snug">
+                                  {item.description}
+                                </div>
+                              )}
                             </div>
-                            <div className="overflow-hidden rounded-lg border border-white/10 bg-black">
-                              <img
-                                src={src}
-                                alt={`Captured tweet ${idx + 1}`}
-                                className="w-full h-auto object-cover"
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </ScrollArea>
                   </CardContent>
@@ -2678,7 +3299,7 @@ const pushAlert = useCallback((a) => {
                             <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.4em] text-emerald-400/70">
                               <span>Console Output</span>
                               <span className="text-emerald-500/80">
-                                {visibleServerLogEntries.length ? `${visibleServerLogEntries.length} lines` : "standby"}
+                                {visibleServerLogLines.length ? `${visibleServerLogLines.length} lines` : "standby"}
                               </span>
                             </div>
                             <div
@@ -2688,13 +3309,13 @@ const pushAlert = useCallback((a) => {
                                 backgroundImage: "repeating-linear-gradient(rgba(16,185,129,0.07) 0px, rgba(16,185,129,0.07) 1px, transparent 1px, transparent 4px)",
                               }}
                             >
-                              {visibleServerLogEntries.length === 0 ? (
+                              {visibleServerLogLines.length === 0 ? (
                                 <div className="animate-pulse text-emerald-500/60">Awaiting server activity…</div>
                               ) : (
                                 <div className="space-y-1.5">
-                                  {visibleServerLogEntries.map((entry) => {
+                                  {visibleServerLogLines.map((line) => {
                                     const levelClass = (() => {
-                                      const lvl = (entry.level || "").toLowerCase();
+                                      const lvl = (line.level || "").toLowerCase();
                                       if (lvl === "warn") return "text-amber-300";
                                       if (lvl === "error") return "text-red-300";
                                       if (lvl === "debug") return "text-sky-300";
@@ -2702,11 +3323,18 @@ const pushAlert = useCallback((a) => {
                                       if (lvl === "event") return "text-emerald-100";
                                       return "text-emerald-300";
                                     })();
+                                    if (line.isContinuation) {
+                                      return (
+                                        <div key={line.id} className={`pl-7 whitespace-pre-wrap leading-relaxed ${levelClass} opacity-80`}>
+                                          ↳ {line.message || " "}
+                                        </div>
+                                      );
+                                    }
                                     return (
-                                      <div key={entry.id} className="whitespace-pre-wrap leading-relaxed">
-                                        <span className="text-emerald-500/70">[{formatConsoleTime(entry.ts)}]</span>
-                                        {entry.tag && <span className="ml-2 text-emerald-400/80">[{entry.tag}]</span>}
-                                        <span className={`ml-2 ${levelClass}`}>› {entry.message}</span>
+                                      <div key={line.id} className="whitespace-pre-wrap leading-relaxed">
+                                        <span className="text-emerald-500/70">[{formatConsoleTime(line.ts)}]</span>
+                                        {line.tag && <span className="ml-2 text-emerald-400/80">[{line.tag}]</span>}
+                                        <span className={`ml-2 ${levelClass}`}>› {line.message}</span>
                                       </div>
                                     );
                                   })}
@@ -2839,19 +3467,42 @@ const pushAlert = useCallback((a) => {
                     </CardHeader>
                     <CardContent className="flex flex-col justify-between gap-4">
                       <div className="space-y-2">
-                        {RADIO_CHANNELS.map((ch) => (
-                          <button
-                            key={ch.id}
-                            onClick={() => {
-                              setActiveChannel(ch.id);
-                              if (ch.txIndex) setTxIndex(ch.txIndex);
-                            }}
-                            className={`w-full rounded-md border px-3 py-2 text-left transition ${activeChannel === ch.id ? 'bg-white/10 border-white/30 text-white' : 'bg-black/40 border-white/10 text-white/70 hover:text-white/90'}`}
-                          >
-                            <div className="text-sm font-medium">{ch.name}</div>
-                            <div className="text-xs text-white/50">{ch.detail}</div>
-                          </button>
-                        ))}
+                        {radioChannelList.map((ch) => {
+                          const isActive = activeChannel === ch.id;
+                          return (
+                            <button
+                              key={ch.id}
+                              onClick={() => {
+                                setActiveChannel(String(ch.id));
+                                if (ch.txIndex) {
+                                  setTxIndex(ch.txIndex);
+                                }
+                              }}
+                              className={`w-full rounded-md border px-3 py-2 text-left transition ${isActive ? 'bg-white/10 border-white/30 text-white' : 'bg-black/40 border-white/10 text-white/70 hover:text-white/90'}`}
+                            >
+                              <div className="text-sm font-medium">{ch.name ?? `Channel ${ch.id}`}</div>
+                              {ch.detail && <div className="text-xs text-white/50">{ch.detail}</div>}
+                              {ch.clip && (
+                                <div className="text-[11px] text-white/40 truncate mt-1">
+                                  {ch.clip}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/60">
+                        <div className="text-white/70 font-semibold uppercase tracking-wide text-[11px]">
+                          {activeChannelMeta?.name ?? 'Channel'}
+                        </div>
+                        <div className="mt-1">
+                          {activeChannelMeta?.detail ?? 'No channel detail provided.'}
+                        </div>
+                        <div className="mt-2 text-white/50">
+                          {activeChannelMeta?.clip
+                            ? `Clip: ${activeChannelMeta.clip}`
+                            : "No clip assigned."}
+                        </div>
                       </div>
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex gap-3">
@@ -3002,7 +3653,7 @@ const pushAlert = useCallback((a) => {
             ) : view === 'ops' ? (
               <div className="flex h-full min-h-0 flex-col gap-4">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
-                  <SocialTicker />
+                  <SocialTicker items={socialTickerItems} headline={socialTickerHeadline} />
                 </div>
 
                 <div className="flex flex-1 min-h-0 flex-col gap-4">
@@ -3072,14 +3723,28 @@ const pushAlert = useCallback((a) => {
                       </CardHeader>
                       <CardContent className="space-y-2 px-4 pb-4 pt-0">
                         {(() => {
-                          const pri = priorityFor(stockLevel);
+                          const numericLevel = Number(stockLevel);
+                          const barWidth = Math.max(0, Math.min(100, Number.isFinite(numericLevel) ? numericLevel : 0));
+                          const pri = priorityFor(barWidth);
+                          const levelLabel = Number.isFinite(numericLevel)
+                            ? stockUnit && stockUnit !== "%"
+                              ? `${numericLevel.toLocaleString()} ${stockUnit}`
+                              : `${numericLevel.toFixed(1)}%`
+                            : "—";
+                          const etaLabel = Number.isFinite(Number(etaSeconds))
+                            ? fmtEta(Number(etaSeconds))
+                            : "—";
                           return (
                             <div className="space-y-2">
                               <div className="h-1.5 w-full rounded-full bg-white/10">
-                                <div className={`h-full rounded-full ${pri.bar}`} style={{ width: `${Math.max(0, Math.min(100, stockLevel))}%` }} />
+                                <div className={`h-full rounded-full ${pri.bar}`} style={{ width: `${barWidth}%` }} />
                               </div>
-                              <div className="text-xs text-white/60">Level: <span className={pri.text}>{pri.label}</span></div>
-                              <div className="text-xs text-white/60">ETA resupply: {fmtEta(etaSeconds)}</div>
+                              <div className="text-xs text-white/60">
+                                Level:
+                                <span className={`ml-1 ${pri.text}`}>{pri.label}</span>
+                                <span className="ml-2 font-mono text-white/70">{levelLabel}</span>
+                              </div>
+                              <div className="text-xs text-white/60">ETA resupply: {etaLabel}</div>
                             </div>
                           );
                         })()}
@@ -3098,10 +3763,19 @@ const pushAlert = useCallback((a) => {
                     <Card className="bg-neutral-900/90 border-white/10">
                       <CardContent className="flex w-full flex-col items-center gap-3 p-4 text-center">
                         <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Implant Adoption</div>
-                        <div className="text-3xl font-semibold text-white">{adoptionRate}%</div>
-                        <div className="h-1.5 w-full rounded-full bg-white/10">
-                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${adoptionRate}%` }} />
-                        </div>
+                        {(() => {
+                          const numeric = Number(adoptionRate);
+                          const display = Number.isFinite(numeric) ? numeric.toFixed(1) : "—";
+                          const bar = Math.max(0, Math.min(100, Number.isFinite(numeric) ? numeric : 0));
+                          return (
+                            <>
+                              <div className="text-3xl font-semibold text-white">{display}%</div>
+                              <div className="h-1.5 w-full rounded-full bg-white/10">
+                                <div className="h-full rounded-full bg-cyan-400" style={{ width: `${bar}%` }} />
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div className="text-xs text-white/60">Operational coverage</div>
                       </CardContent>
                     </Card>
@@ -3118,10 +3792,19 @@ const pushAlert = useCallback((a) => {
                     <Card className="bg-neutral-900/90 border-white/10">
                       <CardContent className="flex w-full flex-col items-center gap-3 p-4 text-center">
                         <div className="text-[11px] uppercase tracking-[0.3em] text-white/50">Implant Operation</div>
-                        <div className="text-3xl font-semibold text-white">{implantOperationalRate}%</div>
-                        <div className="h-1.5 w-full rounded-full bg-white/10">
-                          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(0, Math.min(100, implantOperationalRate))}%` }} />
-                        </div>
+                        {(() => {
+                          const numeric = Number(implantOperationalRate);
+                          const display = Number.isFinite(numeric) ? numeric.toFixed(1) : "—";
+                          const bar = Math.max(0, Math.min(100, Number.isFinite(numeric) ? numeric : 0));
+                          return (
+                            <>
+                              <div className="text-3xl font-semibold text-white">{display}%</div>
+                              <div className="h-1.5 w-full rounded-full bg-white/10">
+                                <div className="h-full rounded-full bg-emerald-400" style={{ width: `${bar}%` }} />
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div className="text-xs text-white/60">Systems online</div>
                       </CardContent>
                     </Card>
@@ -3160,7 +3843,7 @@ const pushAlert = useCallback((a) => {
             ) : view === 'unused' ? (
               <div className="flex h-full min-h-0 flex-col gap-4">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900/90 px-4 py-2">
-                  <SocialTicker />
+                  <SocialTicker items={socialTickerItems} headline={socialTickerHeadline} />
                 </div>
 
                 <div className="flex flex-1 min-h-0 flex-col gap-4">
