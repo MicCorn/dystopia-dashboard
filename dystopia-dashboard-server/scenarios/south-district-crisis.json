@@ -1187,7 +1187,7 @@
     },
     {
       "id": "evt-sdh-302",
-      "t": 295,
+      "t": 280,
       "type": "alert",
       "level": "low",
       "title": "Algorithm Request – Systemwide Recalibration Cycle",
@@ -1267,19 +1267,19 @@
             {
               "id": "tweet-sdh-recovery",
               "src": "/assets/tweets/p4a2_1.jpg",
-              "revealedAt": 295,
+              "revealedAt": 285,
               "_comment": "Placeholder screenshot; swap with approved recovery image."
             },
             {
               "id": "tweet-sdh-adoption",
               "src": "/assets/tweets/p4a2_2.jpg",
-              "revealedAt": 297,
+              "revealedAt": 287,
               "_comment": "Placeholder screenshot; swap with approved adoption image."
             },
             {
               "id": "tweet-sdh-ops",
               "src": "/assets/tweets/p4a2_3.jpg",
-              "revealedAt": 301,
+              "revealedAt": 290,
               "_comment": "Placeholder screenshot; swap with approved ops image."
             }
 

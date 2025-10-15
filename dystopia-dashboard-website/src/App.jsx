@@ -118,7 +118,23 @@ function formatConsoleTime(ts) {
   return d.toLocaleTimeString([], { hour12: false });
 }
 
-function mergeCollections(current, { mode = "replace", items = [], removeIds = [] } = {}) {
+function stableValueKey(value) {
+  if (value === null) return "null";
+  const type = typeof value;
+  if (type === "undefined") return "undefined";
+  if (type === "number" || type === "boolean" || type === "bigint") {
+    return `${type}:${value}`;
+  }
+  if (type === "string") return `string:${value}`;
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableValueKey(entry)).join(",")}]`;
+  }
+  const keys = Object.keys(value).sort();
+  const parts = keys.map((key) => `${key}:${stableValueKey(value[key])}`);
+  return `{${parts.join("|")}}`;
+}
+
+function mergeCollections(current, { mode = "replace", items = [], removeIds = [], signature } = {}) {
   const existing = Array.isArray(current) ? [...current] : [];
   const normalizedMode = (mode || "replace").toLowerCase();
   let next;
@@ -144,6 +160,23 @@ function mergeCollections(current, { mode = "replace", items = [], removeIds = [
   if (Array.isArray(removeIds) && removeIds.length) {
     const removal = new Set(removeIds);
     next = next.filter((it) => it && !removal.has(it.id));
+  }
+
+  if (Array.isArray(next) && next.length > 1) {
+    const seen = new Set();
+    const deduped = [];
+    for (let i = next.length - 1; i >= 0; i -= 1) {
+      const item = next[i];
+      const id = item && item.id;
+      if (!id) {
+        deduped.push(item);
+        continue;
+      }
+      if (seen.has(id)) continue;
+      seen.add(id);
+      deduped.push(item);
+    }
+    next = deduped.reverse();
   }
   return next;
 }
@@ -631,7 +664,7 @@ function LeaderboardPane({
                           key={key}
                           initial={{ opacity: 0, y: 16 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.05, duration: 0.4 }}
+                          transition={{ delay: idx * 0.08, duration: 0.7 }}
                           className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-4 backdrop-blur-sm ${rowClass}`}
                         >
                           <div className="flex items-center gap-4">
@@ -657,7 +690,7 @@ function LeaderboardPane({
                               <div className="text-[11px] uppercase tracking-[0.35em] text-white/40 mt-1">
                                 {row?.placeholder ? "Awaiting candidate" : row?.participantId}
                               </div>
-                              {!row?.placeholder && revealed && row?.rank <= 3 && (
+                              {!row?.placeholder && revealed && row?.rank <= 5 && (
                                 <Badge className="mt-2 w-fit bg-emerald-500/20 border-emerald-400/40 text-emerald-200 text-[10px] uppercase tracking-[0.3em]">
                                   Clearance Granted
                                 </Badge>
@@ -1600,6 +1633,46 @@ function ControlPanel() {
   const [remainingMs, setRemainingMs] = React.useState(0);
   const [sending, setSending] = React.useState(false);
   const [lastSent, setLastSent] = React.useState(null);
+  const eventQueueRef = React.useRef([]);
+
+  const clearEventState = React.useCallback(() => {
+    eventIdRef.current = null;
+    setEventId(null);
+    setActions([]);
+    setWindowMs(0);
+    setRemainingMs(0);
+    setSending(false);
+    setLastSent(null);
+    setDirective("");
+  }, []);
+
+  const startEvent = React.useCallback((evn) => {
+    if (!evn || !evn.id) {
+      clearEventState();
+      return;
+    }
+    eventIdRef.current = evn.id;
+    setEventId(evn.id);
+    const act = Array.isArray(evn.actions) && evn.actions.length ? evn.actions : CRITICAL_ACTIONS;
+    setActions(act);
+    const winMs = Number(evn.responseWindowSec ?? 15) * 1000;
+    setWindowMs(winMs);
+    setRemainingMs(winMs);
+    setLastSent(null);
+    setSending(false);
+    if (typeof evn.banner === "string") {
+      setDirective(evn.banner);
+    }
+  }, [clearEventState]);
+
+  const advanceQueue = React.useCallback(() => {
+    const [next, ...rest] = Array.isArray(eventQueueRef.current) ? eventQueueRef.current : [];
+    eventQueueRef.current = rest || [];
+    clearEventState();
+    if (next) {
+      startEvent(next);
+    }
+  }, [clearEventState, startEvent]);
 
   React.useEffect(() => {
     eventIdRef.current = eventId;
@@ -1687,22 +1760,16 @@ function ControlPanel() {
           }
           if (msg.type === "event_open" && msg.event) {
             const evn = msg.event;
-            eventIdRef.current = evn.id;
-            setEventId(evn.id);
-
-            // actions from server or fallback
-            const act = Array.isArray(evn.actions) && evn.actions.length ? evn.actions : CRITICAL_ACTIONS;
-            setActions(act);
-
-            // server sends seconds, convert to ms
-            const winMs = Number(evn.responseWindowSec ?? 15) * 1000;
-            setWindowMs(winMs);
-            setRemainingMs(winMs);
-
-            setLastSent(null);
-            setSending(false);
-
-            if (typeof evn.banner === "string") setDirective(evn.banner);
+            if (eventIdRef.current === evn.id) {
+              startEvent(evn);
+            } else if (eventIdRef.current) {
+              const alreadyQueued = eventQueueRef.current.some((pending) => pending?.id === evn.id);
+              if (!alreadyQueued) {
+                eventQueueRef.current = [...eventQueueRef.current, evn];
+              }
+            } else {
+              startEvent(evn);
+            }
             if (!codenameLockedRef.current) {
               codenameLockedRef.current = true;
               setCodenameLocked(true);
@@ -1711,18 +1778,16 @@ function ControlPanel() {
             return;
           }
           if (msg.type === "event_close") {
-            eventIdRef.current = null;
-            setEventId(null);
-            setActions([]);
-            setWindowMs(0);
-            setRemainingMs(0);
-            setSending(false);
-            setDirective("");
+            if (eventIdRef.current === msg.eventId) {
+              advanceQueue();
+            } else if (Array.isArray(eventQueueRef.current) && eventQueueRef.current.length) {
+              eventQueueRef.current = eventQueueRef.current.filter((pending) => pending?.id !== msg.eventId);
+            }
             return;
           }
           if (msg.type === "final") {
-            eventIdRef.current = null;
-            setEventId(null);
+            eventQueueRef.current = [];
+            clearEventState();
             setDirective("ASSESSMENT COMPLETE");
             return;
           }
@@ -1731,7 +1796,7 @@ function ControlPanel() {
     }
     connect();
     return () => { clearTimeout(reconnectRef.current); try { wsRef.current?.close(); } catch {} wsRef.current = null; };
-  }, [sessionId]);
+  }, [sessionId, advanceQueue, startEvent, clearEventState]);
 
   // submit choice -> POST /api/session/:id/input
   const submitChoice = React.useCallback(async (choice) => {
@@ -2035,6 +2100,7 @@ function HungerCrisisDashboard() {
   const [radioChannels, setRadioChannels] = useState(() => RADIO_CHANNELS.map((ch) => ({ ...ch, id: String(ch.id) })));
   const radioAudioRefs = useRef(new Map());
   const lastRadioKeyRef = useRef(null);
+  const lastRadioClipsRef = useRef(new Map());
   const series = isAssessment ? (assessmentSeries ?? localSeries) : localSeries;
   useEffect(() => {
     soundOnRef.current = soundOn;
@@ -2158,7 +2224,7 @@ function HungerCrisisDashboard() {
           const rankB = Number.isFinite(Number(b?.rank)) ? Number(b.rank) : Number.MAX_SAFE_INTEGER;
           return rankA - rankB;
         })
-        .slice(0, 10);
+        .slice(0, 5);
 
       setLeaderboardEntries(normalized);
       setLeaderboardStatus("success");
@@ -2581,10 +2647,15 @@ function HungerCrisisDashboard() {
   const pushAlert = useCallback((a) => {
     // Route critical alerts to the blocking modal queue
     if (a.level === "critical") {
-      setCriticalQueue((q) => [...q, a]);
+      setCriticalQueue((q) => {
+        if (!a?.id) return q;
+        if (q.some((existing) => existing?.id === a.id)) return q;
+        return [...q, a];
+      });
     } else {
       setAlerts((prev) => {
-        const next = [a, ...prev];
+        const normalizedId = a?.id ?? crypto.randomUUID();
+        const next = [{ ...a, id: normalizedId }, ...prev.filter((existing) => existing?.id !== normalizedId)];
         const overflow = next.slice(5); // anything beyond the visible stack
         // Convert any dropped critical alerts into incidents
         overflow.forEach((old) => {
@@ -2825,8 +2896,8 @@ function HungerCrisisDashboard() {
         const merged = mergeCollections(base, { mode, items: normalized, removeIds: cfg.removeIds });
         const sorted = [...merged];
         sorted.sort((a, b) => {
-          const at = Number.isFinite(Number(a?.revealedAt)) ? Number(a.revealedAt) : Infinity;
-          const bt = Number.isFinite(Number(b?.revealedAt)) ? Number(b.revealedAt) : Infinity;
+          const at = Number.isFinite(Number(a?.revealedAt)) ? Number(a.revealedAt) : -Infinity;
+          const bt = Number.isFinite(Number(b?.revealedAt)) ? Number(b.revealedAt) : -Infinity;
           if (at === bt) {
             return (b?.id ?? "").localeCompare(a?.id ?? "");
           }
@@ -3046,7 +3117,7 @@ function HungerCrisisDashboard() {
       ...entry,
       typedName: typedNames[idx] ?? "",
     }));
-    for (let i = rows.length; i < 10; i += 1) {
+    for (let i = rows.length; i < 5; i += 1) {
       rows.push({
         rank: i + 1,
         placeholder: true,
@@ -3108,7 +3179,7 @@ function HungerCrisisDashboard() {
 
   const incidentHighlights = useMemo(() => incidents.slice(0, 2), [incidents]);
   const recentDecisions = useMemo(() => auditLog.slice(0, 3), [auditLog]);
-  const alertHighlights = useMemo(() => alerts.slice(0, 5), [alerts]);
+  const alertHighlights = useMemo(() => alerts.slice(0, 4), [alerts]);
   const defaultTweetGallery = useMemo(
     () =>
       Array.from({ length: 7 }, (_, idx) => ({
@@ -3138,6 +3209,30 @@ function HungerCrisisDashboard() {
     () => radioChannelList.find((c) => c.id === activeChannel),
     [radioChannelList, activeChannel]
   );
+  useEffect(() => {
+    if (!Array.isArray(radioChannelList) || radioChannelList.length === 0) {
+      lastRadioClipsRef.current = new Map();
+      return;
+    }
+    let channelToActivate = null;
+    const signatures = new Map();
+    radioChannelList.forEach((channel) => {
+      if (!channel || !channel.id) return;
+      const signature = `${channel.clip ?? ""}::${channel.txIndex ?? ""}`;
+      signatures.set(channel.id, signature);
+      const previous = lastRadioClipsRef.current.get(channel.id);
+      if (channel.clip && signature !== previous) {
+        channelToActivate = channel;
+      }
+    });
+    lastRadioClipsRef.current = signatures;
+    if (channelToActivate) {
+      setActiveChannel(String(channelToActivate.id));
+      if (channelToActivate.txIndex) {
+        setTxIndex(channelToActivate.txIndex);
+      }
+    }
+  }, [radioChannelList, setActiveChannel, setTxIndex]);
   const stopAllRadioClips = useCallback(() => {
     radioAudioRefs.current.forEach((audio) => {
       try {
@@ -3318,7 +3413,7 @@ function HungerCrisisDashboard() {
                             </div>
                             <div
                               ref={serverLogScrollRef}
-                              className="flex-1 overflow-y-auto rounded-xl border border-emerald-500/40 bg-[#020f07]/90 p-3 font-mono text-xs text-emerald-300 shadow-[0_0_28px_rgba(16,185,129,0.24)]"
+                              className="flex-1 max-h-[200px] overflow-y-auto rounded-xl border border-emerald-500/40 bg-[#020f07]/90 p-3 font-mono text-xs text-emerald-300 shadow-[0_0_28px_rgba(16,185,129,0.24)]"
                               style={{
                                 backgroundImage: "repeating-linear-gradient(rgba(16,185,129,0.07) 0px, rgba(16,185,129,0.07) 1px, transparent 1px, transparent 4px)",
                               }}
