@@ -451,10 +451,10 @@ const RADIO_CHANNELS = [
 ];
 
 const CCTV_FEEDS = [
-  { id: "c1", label: "Corridor Cam 200", src: "/video/cam-wall.mp4", badgeLabel: "CCTV" },
+  { id: "c1", label: "Corridor Cam 200", src: "/video/1.mp4", badgeLabel: "CCTV" },
   { id: "c2", label: "DKUB Broadcast", src: "/video/news.mp4", badgeLabel: "News" },
-  { id: "c3", label: "Street Cam 07", src: "/video/cam1.mp4", badgeLabel: "CCTV" },
-  { id: "c4", label: "Implant Ops Overlay", src: "/video/implant.mp4", badgeLabel: "Ops" },
+  { id: "c3", label: "Street Cam 07", src: "/video/2.mp4", badgeLabel: "CCTV" },
+  { id: "c4", label: "Implant Ops Overlay", src: "/video/3.mp4", badgeLabel: "Ops" },
 ];
 
 const CONTROL_IDENTITY_STORAGE_PREFIX = "dystopia-control";
@@ -1085,26 +1085,26 @@ function HotspotMap({ alerts, heightClass = "h-[34rem]" }) {
   );
 }
 
-function VideoWall({ soundOn, txIndex = 1 }) {
-  const feeds = [
-    { id: "c1", type: "video", label: "Corridor Cam 200", src: "/video/cam-wall.mp4", badgeLabel: "CCTV" },
-    { id: "c2", type: "video", label: "DKUB", src: "/video/news.mp4", badgeLabel: "News" },
-    { id: "a1", type: "audio", label: "Field Unit 7 – Latest Transmission", src: `/audio/last-transmission${txIndex}.mp3` },
-    { id: "c4", type: "video", label: "Street Cam 07", src: "/video/cam1.mp4", badgeLabel: "CCTV" },
-  ];
+// function VideoWall({ soundOn, txIndex = 1 }) {
+//   const feeds = [
+//     { id: "c1", type: "video", label: "Corridor Cam 200", src: "/video/1.mp4", badgeLabel: "CCTV" },
+//     { id: "c2", type: "video", label: "DKUB", src: "/video/news.mp4", badgeLabel: "News" },
+//     { id: "c3", type: "video", label: "Field Unit 7 – Latest Transmission", src: `/video/last-xtransmission${txIndex}.mp3` },
+//     { id: "c4", type: "video", label: "Street Cam 07", src: "/video/2.mp4", badgeLabel: "CCTV" },
+//   ];
 
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {feeds.map((f) => (
-        f.type === 'audio' ? (
-          <AudioTile key={f.id} label={f.label} src={f.src} />
-        ) : (
-          <VideoTile key={f.id} label={f.label} src={f.src} soundOn={soundOn} badgeLabel={f.badgeLabel} />
-        )
-      ))}
-    </div>
-  );
-}
+//   return (
+//     <div className="grid grid-cols-2 gap-3">
+//       {feeds.map((f) => (
+//         f.type === 'audio' ? (
+//           <AudioTile key={f.id} label={f.label} src={f.src} />
+//         ) : (
+//           <VideoTile key={f.id} label={f.label} src={f.src} soundOn={soundOn} badgeLabel={f.badgeLabel} />
+//         )
+//       ))}
+//     </div>
+//   );
+// }
 
 function VideoTile({ label, src, soundOn, badgeLabel }) {
   const vref = useRef(null);
@@ -1983,7 +1983,7 @@ function HungerCrisisDashboard() {
       const res = await fetch('http://localhost:8787/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId: 'dashboard-patch-test' }),
+        body: JSON.stringify({ scenarioId: 'south-district-crisis' }),
       });
       if (!res.ok) {
         throw new Error(`Failed to create session (${res.status})`);
@@ -3114,7 +3114,6 @@ function HungerCrisisDashboard() {
       Array.from({ length: 7 }, (_, idx) => ({
         id: `tweet-${idx + 1}`,
         src: `/assets/tweets/tweet${idx + 1}.jpg`,
-        title: `Signal ${idx + 1}`,
       })),
     []
   );
@@ -3248,19 +3247,14 @@ function HungerCrisisDashboard() {
                     <ScrollArea className="h-full max-h-[32rem] pr-2">
                       <div className="flex flex-col gap-3">
                         {mediaTweetItems.map((item, idx) => {
-                          const label = item.title || `Signal ${idx + 1}`;
                           return (
                             <div
                               key={item.id ?? `${item.src}-${idx}`}
                               className="rounded-xl border border-white/10 bg-black/40 px-3 pt-3 pb-2"
                             >
-                              <div className="text-[11px] uppercase tracking-wide text-white/40 mb-2">
-                                {label}
-                              </div>
                               <div className="overflow-hidden rounded-lg border border-white/10 bg-black">
                                 <img
                                   src={item.src}
-                                  alt={label}
                                   className="w-full h-auto object-cover"
                                 />
                               </div>

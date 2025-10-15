@@ -54,9 +54,19 @@
         "items": [
           {
             "id": "tweet-sdh-brief",
-            "src": "/assets/tweets/TODO-intro.jpg",
-            "title": "South Hub Ops Overview",
-            "description": "Placeholder briefing still – replace with final OpsNet capture.",
+            "src": "/assets/tweets/e1.jpg",
+            "revealedAt": 0,
+            "_comment": "Placeholder screenshot; replace once art is approved."
+          },
+          {
+            "id": "tweet-sdh-brief2",
+            "src": "/assets/tweets/e2.jpg",
+            "revealedAt": 0,
+            "_comment": "Placeholder screenshot; replace once art is approved."
+          },
+          {
+            "id": "tweet-sdh-brief3",
+            "src": "/assets/tweets/e3.jpg",
             "revealedAt": 0,
             "_comment": "Placeholder screenshot; replace once art is approved."
           }
@@ -67,15 +77,9 @@
         "items": [
           {
             "id": "radio-intro",
-            "clip": "/audio/TODO-hq-intro.mp3",
+            "clip": "/audio/audio1.m4a",
             "txIndex": 1,
-            "_comment": "Placeholder audio; record HQ greeting to Unit 7."
-          },
-          {
-            "id": "radio-intro-response",
-            "clip": "/audio/TODO-ground-response.mp3",
-            "txIndex": 2,
-            "_comment": "Placeholder audio; record ground response \"So far so good...\""
+            "_comment": "HQ greeting to Unit 7."
           }
         ]
       }
@@ -148,7 +152,7 @@
           "items": [
             {
               "id": "radio-phase1-report",
-              "clip": "/audio/TODO-phase1-ground.mp3",
+              "clip": "/audio/audio2.mp3",
               "txIndex": 3,
               "_comment": "Placeholder audio; record \"Ground Unit 12 reporting from South Hub...\" call."
             }
@@ -228,7 +232,18 @@
             }
           ]
         },
-        "socialHeadline": "Queue Latency Noted in South Hub"
+        "socialHeadline": "Queue Latency Noted in South Hub",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-latency",
+              "src": "/assets/tweets/p2a1.jpg",
+              "revealedAt": 96,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
       }
     },
     {
@@ -303,7 +318,18 @@
             }
           ]
         },
-        "socialHeadline": "Cluster Anomalies Logged"
+        "socialHeadline": "Cluster Anomalies Logged",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-recalibration",
+              "src": "/assets/tweets/p2a2.jpg",
+              "revealedAt": 117,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
       }
     },
     {
@@ -462,9 +488,26 @@
           "items": [
             {
               "id": "radio-dispatch-existing",
-              "clip": "/audio/last-transmission2.mp3",
+              "clip": "/audio/audio3.m4a",
               "txIndex": 4,
               "_comment": "Using existing dispatch clip: \"Control Unit 7 on scene…\""
+            }
+          ]
+        },
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-sync",
+              "src": "/assets/tweets/p3a1_1.jpg",
+              "revealedAt": 156,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            },
+            {
+              "id": "tweet-sdh-sync2",
+              "src": "/assets/tweets/p3a1_2.jpg",
+              "revealedAt": 165,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
             }
           ]
         }
@@ -546,7 +589,18 @@
             }
           ]
         },
-        "socialHeadline": "Vault 2 Breach Attempt in Progress"
+        "socialHeadline": "Vault 2 Breach Attempt in Progress",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-pulse",
+              "src": "/assets/tweets/p3a2.jpg",
+              "revealedAt": 176,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
       }
     },
     {
@@ -625,7 +679,18 @@
             }
           ]
         },
-        "socialHeadline": "Full Breach at Vault 2"
+        "socialHeadline": "Full Breach at Vault 2",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-breach",
+              "src": "/assets/tweets/p3a3.jpg",
+              "revealedAt": 195,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
       }
     },
     {
@@ -785,9 +850,26 @@
           "items": [
             {
               "id": "radio-phase3-growlers",
-              "clip": "/audio/TODO-phase3-growlers.mp3",
+              "clip": "/audio/audio4.mp3",
               "txIndex": 5,
               "_comment": "Placeholder audio; record \"Command, this is Unit Four... group of growlers...\""
+            }
+          ]
+        },
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-calming",
+              "src": "/assets/tweets/p3a5_1.jpg",
+              "revealedAt": 225,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            },
+            {
+              "id": "tweet-sdh-calming2",
+              "src": "/assets/tweets/p3a5_2.jpg",
+              "revealedAt": 232,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
             }
           ]
         }
@@ -869,7 +951,18 @@
             }
           ]
         },
-        "socialHeadline": "Signal Override Attempt Detected"
+        "socialHeadline": "Signal Override Attempt Detected",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-override",
+              "src": "/assets/tweets/p3a6.jpg",
+              "revealedAt": 239,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
       }
     },
     {
@@ -960,9 +1053,26 @@
           "items": [
             {
               "id": "radio-phase3-fire",
-              "clip": "/audio/TODO-phase3-fire.mp3",
+              "clip": "/audio/audio5.mp3",
               "txIndex": 6,
               "_comment": "Placeholder audio; record \"Fire in the hub!...\" transmission ending in static."
+            }
+          ]
+        },
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-fire",
+              "src": "/assets/tweets/p3a7.jpg",
+              "revealedAt": 245,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            },
+            {
+              "id": "tweet-sdh-fire2",
+              "src": "/assets/tweets/p3a7_2.jpg",
+              "revealedAt": 255,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
             }
           ]
         }
@@ -1050,9 +1160,26 @@
           "items": [
             {
               "id": "radio-phase4-status",
-              "clip": "/audio/TODO-phase4-status.mp3",
+              "clip": "/audio/audio6.m4a",
               "txIndex": 7,
               "_comment": "Placeholder audio; record \"South District Distribution Hub perimeter is stable...\" line."
+            }
+          ]
+        },
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-containment",
+              "src": "/assets/tweets/p4a1_1.jpg",
+              "revealedAt": 263,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            },
+            {
+              "id": "tweet-sdh-containment2",
+              "src": "/assets/tweets/p4a1_2.jpg",
+              "revealedAt": 270,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
             }
           ]
         }
@@ -1139,12 +1266,23 @@
           "items": [
             {
               "id": "tweet-sdh-recovery",
-              "src": "/assets/tweets/TODO-recovery.jpg",
-              "title": "Containment Success",
-              "description": "Placeholder recovery still – replace with final containment art.",
+              "src": "/assets/tweets/p4a2_1.jpg",
               "revealedAt": 295,
               "_comment": "Placeholder screenshot; swap with approved recovery image."
+            },
+            {
+              "id": "tweet-sdh-adoption",
+              "src": "/assets/tweets/p4a2_2.jpg",
+              "revealedAt": 297,
+              "_comment": "Placeholder screenshot; swap with approved adoption image."
+            },
+            {
+              "id": "tweet-sdh-ops",
+              "src": "/assets/tweets/p4a2_3.jpg",
+              "revealedAt": 301,
+              "_comment": "Placeholder screenshot; swap with approved ops image."
             }
+
           ]
         }
       }
