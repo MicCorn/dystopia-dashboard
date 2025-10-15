@@ -593,10 +593,8 @@ function LeaderboardPane({
               </div>
 
               {algoText ? (
-                <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left text-sm text-emerald-100 shadow-[0_0_25px_rgba(34,197,94,0.18)]">
-                  <div className="text-[10px] uppercase tracking-[0.6em] text-emerald-200/80 mb-1">Live Decree</div>
-                  <div className="leading-relaxed">{algoText}</div>
-                </div>
+                // display nothing if algoText is present
+                <div></div>
               ) : (
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.4em] text-white/50">
                   Awaiting pronouncement from THE ALGORITHM…

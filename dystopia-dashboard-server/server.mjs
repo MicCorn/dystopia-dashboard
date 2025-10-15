@@ -720,7 +720,7 @@ app.post("/api/session/:id/input", (req, res) => {
   sessionLog(
     s,
     "INPUT",
-    `${p.codename} → ${action} on ${eventId} :: ${reason} (Δ ${delta}) total=${p.score}`,
+    `${p.codename} → ${action} on ${eventId} :: new total=${p.score}`,
     "info",
     { participantId, eventId, action, reason, delta }
   );
@@ -869,7 +869,6 @@ wss.on("connection", (ws) => {
         if (history.length) {
           ws.send(JSON.stringify({ type: "log_snapshot", entries: history }));
         }
-        sessionLog(session, "OPS", `Dashboard connected (active OPS sockets: ${session.sockets.ops.size})`, "system");
         return;
       }
 
@@ -931,7 +930,6 @@ wss.on("connection", (ws) => {
     if (!s) return;
     if (role === "ops") {
       s.sockets.ops.delete(ws);
-      sessionLog(s, "OPS", `Dashboard disconnected (active OPS sockets: ${s.sockets.ops.size})`, "system");
     }
     if (role === "control") {
       s.sockets.control.delete(ws);
