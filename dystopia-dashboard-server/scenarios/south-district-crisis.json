@@ -1,0 +1,1153 @@
+{
+  "meta": {
+    "id": "south-district-crisis",
+    "title": "South District Hub Crisis Drill",
+    "durationHintSec": 310,
+    "algoTone": "urgent",
+    "endBufferSec": 3
+  },
+  "dashboard": {
+    "initial": {
+      "incidentSum": 0,
+      "recalibrationSum": 0,
+      "reportedIncidents": {
+        "mode": "replace",
+        "items": []
+      },
+      "mapMarkers": {
+        "mode": "replace",
+        "items": []
+      },
+      "trendSeries": {
+        "mode": "replace",
+        "points": [
+          { "t": 1717200000000, "incidents": 0, "recalibrations": 0 }
+        ]
+      },
+      "caloricStockpile": {
+        "value": 96.3,
+        "etaSeconds": 3600,
+        "unit": "%"
+      },
+      "implantOperationalRate": 99.1,
+      "implantAdoptionRate": 87.4,
+      "socialFeed": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "feed-prep-1",
+            "text": "Ops Relay: South District distribution hub operating within tolerance.",
+            "tone": "info",
+            "source": "OpsNet"
+          },
+          {
+            "id": "feed-prep-2",
+            "text": "Algorithm standing by. Continue monitoring ground chatter.",
+            "tone": "info",
+            "source": "System"
+          }
+        ]
+      },
+      "socialHeadline": "Monitoring South District Hub",
+      "tweetGallery": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "tweet-sdh-brief",
+            "src": "/assets/tweets/TODO-intro.jpg",
+            "title": "South Hub Ops Overview",
+            "description": "Placeholder briefing still – replace with final OpsNet capture.",
+            "revealedAt": 0,
+            "_comment": "Placeholder screenshot; replace once art is approved."
+          }
+        ]
+      },
+      "radioChannels": {
+        "mode": "replace",
+        "items": [
+          {
+            "id": "radio-intro",
+            "clip": "/audio/TODO-hq-intro.mp3",
+            "txIndex": 1,
+            "_comment": "Placeholder audio; record HQ greeting to Unit 7."
+          },
+          {
+            "id": "radio-intro-response",
+            "clip": "/audio/TODO-ground-response.mp3",
+            "txIndex": 2,
+            "_comment": "Placeholder audio; record ground response \"So far so good...\""
+          }
+        ]
+      }
+    }
+  },
+  "events": [
+    {
+      "id": "evt-sdh-001",
+      "t": 20,
+      "type": "alert",
+      "level": "low",
+      "title": "Unstable Civilian – Vital Drop Detected",
+      "location": "South District Distribution Hub, Counter 3",
+      "details": "Implant telemetry spikes, glucose plunges. Initial irregularity flagged.",
+      "map": { "x": 58, "y": 63 },
+      "requiresAction": true,
+      "responseWindowSec": 25,
+      "allowedActions": ["Dispatch medics", "Authorize remote recalibration", "Hold position"],
+      "correctAction": "Authorize remote recalibration",
+      "pointsPossible": 120,
+      "penalties": { "wrong": -80, "late": -40, "noResponse": -50 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Telemetry shows glucose drop. Initiate remote recalibration now." },
+        { "tOffset": 12, "text": "Confirm Unit 12 maintains observation until vitals stabilize." }
+      ],
+      "dashboard": {
+        "incidentSum": 1,
+        "recalibrationSum": 0,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-unstable-1",
+              "title": "Unstable Civilian – Sudden Blood Glucose Drop",
+              "location": "South District Distribution Hub – Counter 3",
+              "timeReported": "14:07:12",
+              "status": "Active – Monitoring",
+              "description": "Unit 12 reports a single civilian with implant C-07294 showing severe glucose crash.",
+              "emergencyLevel": 1,
+              "people": 1,
+              "details": "Ground medics notified; awaiting recalibration result.",
+              "badgeClass": "bg-yellow-500/20 text-yellow-200 border-yellow-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-counter3",
+              "label": "Glucose Drop Alert",
+              "level": "low",
+              "status": "Active",
+              "count": 1,
+              "x": 58,
+              "y": 63,
+              "details": "First marker placed for localized irregularity."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200020000, "incidents": 1, "recalibrations": 0 }
+          ]
+        },
+        "socialHeadline": "Localized Vital Drop Detected",
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "radio-phase1-report",
+              "clip": "/audio/TODO-phase1-ground.mp3",
+              "txIndex": 3,
+              "_comment": "Placeholder audio; record \"Ground Unit 12 reporting from South Hub...\" call."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-sdh-101",
+      "t": 95,
+      "type": "alert",
+      "level": "moderate",
+      "title": "Agitated Civilian – Implant Signal Delay",
+      "location": "South District Distribution Hub, Waiting Area",
+      "details": "Implant response latency rising; agitation spreading through queue.",
+      "map": { "x": 57, "y": 61 },
+      "requiresAction": true,
+      "responseWindowSec": 22,
+      "allowedActions": ["Dispatch medics", "Stagger queue flow", "Broadcast calming directive"],
+      "correctAction": "Stagger queue flow",
+      "pointsPossible": 140,
+      "penalties": { "wrong": -100, "late": -45, "noResponse": -60 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Latency detected. Adjust throughput before agitation spreads." },
+        { "tOffset": 10, "text": "Direct floor staff to split the queue and maintain monitoring." }
+      ],
+      "dashboard": {
+        "incidentSum": 2,
+        "recalibrationSum": 0,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-signal-delay",
+              "title": "Behavioral Agitation Linked to Latent Implant Response",
+              "location": "South District Distribution Hub – Waiting Area",
+              "timeReported": "14:08:26",
+              "status": "Active – Floor Team Engaged",
+              "description": "Queue movement slowing as implant response lags for a single civilian.",
+              "emergencyLevel": 2,
+              "people": 1,
+              "details": "Crowd movement monitored for spillover agitation.",
+              "badgeClass": "bg-orange-500/20 text-orange-200 border-orange-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-waiting-area",
+              "label": "Waiting Area Agitation",
+              "level": "moderate",
+              "status": "Active",
+              "count": 2,
+              "x": 57,
+              "y": 61,
+              "details": "Radius expanded to reflect crowd movement."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200095000, "incidents": 2, "recalibrations": 0 }
+          ]
+        },
+        "implantOperationalRate": 99.0,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-delay",
+              "text": "Line chatter rising at South Hub waiting area—implant ping delayed.",
+              "tone": "warning",
+              "source": "Civic Watch"
+            }
+          ]
+        },
+        "socialHeadline": "Queue Latency Noted in South Hub"
+      }
+    },
+    {
+      "id": "evt-sdh-102",
+      "t": 115,
+      "type": "alert",
+      "level": "moderate",
+      "title": "Cluster Irregularity – Consecutive Signal Drops",
+      "location": "South District Distribution Hub, Main Queue",
+      "details": "Multiple implants flag data anomalies inside 30 seconds.",
+      "map": { "x": 56, "y": 60 },
+      "requiresAction": true,
+      "responseWindowSec": 22,
+      "allowedActions": ["Authorize remote recalibration", "Deploy calming drones", "Escalate to security"],
+      "correctAction": "Authorize remote recalibration",
+      "pointsPossible": 150,
+      "penalties": { "wrong": -110, "late": -45, "noResponse": -60 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Cluster anomalies rising. Approve recalibration sweep immediately." },
+        { "tOffset": 9, "text": "Maintain monitoring—security escalation not yet warranted." }
+      ],
+      "dashboard": {
+        "incidentSum": 3,
+        "recalibrationSum": 1,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-cluster-drop",
+              "title": "Multiple Implant Data Anomalies Detected",
+              "location": "South District Distribution Hub – Main Queue",
+              "timeReported": "14:09:03",
+              "status": "Active – Monitoring in Progress",
+              "description": "Four civilians present irregular biometric readings inside 30 seconds.",
+              "emergencyLevel": 2,
+              "people": 4,
+              "details": "Algorithm triggered a batch recalibration for a single device.",
+              "badgeClass": "bg-orange-500/20 text-orange-200 border-orange-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-cluster",
+              "label": "Signal Drop Cluster",
+              "level": "moderate",
+              "status": "Active",
+              "count": 4,
+              "x": 56,
+              "y": 60,
+              "details": "Cluster highlight added for consecutive anomalies."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200115000, "incidents": 3, "recalibrations": 1 }
+          ]
+        },
+        "implantOperationalRate": 98.5,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-cluster",
+              "text": "South Hub data burst: multiple implants needing recalibration.",
+              "tone": "warning",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Cluster Anomalies Logged"
+      }
+    },
+    {
+      "id": "evt-sdh-103",
+      "t": 140,
+      "type": "alert",
+      "level": "moderate",
+      "title": "Agitated Civilians – Demand for Additional Rations",
+      "location": "South District Distribution Hub, Ration Dispensary Zone",
+      "details": "Seven civilians demanding additional rations as hunger sensation returns.",
+      "map": { "x": 55, "y": 58 },
+      "requiresAction": true,
+      "responseWindowSec": 24,
+      "allowedActions": ["Authorize remote recalibration", "Dispatch security and nutrition team", "Issue denial notice"],
+      "correctAction": "Dispatch security and nutrition team",
+      "pointsPossible": 150,
+      "penalties": { "wrong": -120, "late": -50, "noResponse": -70 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Caloric cravings resurfacing. Dispatch mixed team to de-escalate." },
+        { "tOffset": 11, "text": "Ensure ration levels remain locked down while recalibrations sync." }
+      ],
+      "dashboard": {
+        "incidentSum": 4,
+        "recalibrationSum": 3,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-demand-rations",
+              "title": "Escalating Civilian Agitation Due to Hunger Sensation Return",
+              "location": "South District Distribution Hub – Ration Dispensary Zone",
+              "timeReported": "14:10:17",
+              "status": "Active – Additional Units Requested",
+              "description": "Seven civilians demanding immediate ration increases; agitation escalating.",
+              "emergencyLevel": 3,
+              "people": 7,
+              "details": "On-site recalibration attempts initiated to stabilize implants.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-dispensary",
+              "label": "Dispensary Agitation",
+              "level": "high",
+              "status": "Active",
+              "count": 7,
+              "x": 55,
+              "y": 58,
+              "details": "Cluster radius widened to reflect unrest."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200140000, "incidents": 4, "recalibrations": 3 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 95.1,
+          "etaSeconds": 3200
+        },
+        "implantOperationalRate": 97.5,
+        "socialHeadline": "Dispensary Unrest Rising"
+      }
+    },
+    {
+      "id": "evt-sdh-201",
+      "t": 155,
+      "type": "alert",
+      "level": "high",
+      "title": "Mass Implant Instability – Zone 3 Cluster",
+      "location": "South District Distribution Hub – Zone 3 Corridor",
+      "details": "Simultaneous implant malfunctions trigger aggressive responses; multiple sub-incidents logged.",
+      "map": { "x": 52, "y": 57 },
+      "requiresAction": true,
+      "responseWindowSec": 26,
+      "allowedActions": ["Deploy HCI team", "Initiate lockdown protocol", "Broadcast calming directive"],
+      "correctAction": "Deploy HCI team",
+      "pointsPossible": 180,
+      "penalties": { "wrong": -140, "late": -60, "noResponse": -90 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Zone 3 flashing red. Deploy HCI and suppression immediately." },
+        { "tOffset": 10, "text": "Algorithm delivering recommendations for each incident—execute sequentially." }
+      ],
+      "dashboard": {
+        "incidentSum": 6,
+        "recalibrationSum": 6,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-zone3-instability",
+              "title": "Coordinated Implant Malfunctions Trigger Aggressive Civilian Responses",
+              "location": "South District Distribution Hub – Zone 3 Corridor",
+              "timeReported": "14:11:02",
+              "status": "Active",
+              "description": "12–15 civilians reacting violently as implants desync.",
+              "emergencyLevel": 4,
+              "people": 15,
+              "details": "Algorithm initiated batch recalibration for three devices.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-zone3",
+              "label": "Zone 3 Instability",
+              "level": "critical",
+              "status": "Active",
+              "count": 12,
+              "x": 52,
+              "y": 57,
+              "details": "Flashing overlay applied to Zone 3 cluster."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200155000, "incidents": 6, "recalibrations": 6 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 94.6,
+          "etaSeconds": 3000
+        },
+        "implantOperationalRate": 96.0,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-zone3-1",
+              "text": "Zone 3 corridor lit up—multiple civilians out of sync.",
+              "tone": "critical",
+              "source": "Civic Watch"
+            },
+            {
+              "id": "feed-sdh-zone3-2",
+              "text": "Algorithm pushing per-incident guidance. Ops requesting HCI on deck.",
+              "tone": "critical",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Zone 3 Crisis Escalating",
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "radio-dispatch-existing",
+              "clip": "/audio/last-transmission2.mp3",
+              "txIndex": 4,
+              "_comment": "Using existing dispatch clip: \"Control Unit 7 on scene…\""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-sdh-202",
+      "t": 175,
+      "type": "alert",
+      "level": "critical",
+      "title": "Unstable Civilian Group – Ration Breach Attempt",
+      "location": "South District Distribution Hub, Storage Bay Corridor",
+      "details": "Unauthorized access attempt underway at Nutrient Vault 2.",
+      "map": { "x": 50, "y": 55 },
+      "requiresAction": true,
+      "responseWindowSec": 24,
+      "allowedActions": ["Deploy suppression units", "Seal corridor doors", "Alert public safety grid"],
+      "correctAction": "Deploy suppression units",
+      "pointsPossible": 200,
+      "penalties": { "wrong": -160, "late": -70, "noResponse": -100 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Vault breach attempt. Send suppression teams; maintain corridor seal." },
+        { "tOffset": 9, "text": "Recalibration surge queued for nearby implants—monitor for instability." }
+      ],
+      "dashboard": {
+        "incidentSum": 7,
+        "recalibrationSum": 10,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-ration-breach-attempt",
+              "title": "Unauthorized Access Attempt at Nutrient Vault 2",
+              "location": "South District Distribution Hub – Storage Bay Corridor",
+              "timeReported": "14:11:47",
+              "status": "Active – Additional Units Requested",
+              "description": "8–10 civilians attempting to breach Vault 2; suppression teams en route.",
+              "emergencyLevel": 4,
+              "people": 10,
+              "details": "Algorithm coordinating four recalibrations in adjacent queue.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-vault2",
+              "label": "Vault 2 Breach Attempt",
+              "level": "critical",
+              "status": "Active",
+              "count": 10,
+              "x": 50,
+              "y": 55,
+              "details": "Marker pulses to connect with Zone 3 cluster."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200175000, "incidents": 7, "recalibrations": 10 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 91.6,
+          "etaSeconds": 2700
+        },
+        "implantOperationalRate": 93.0,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-vault-attempt",
+              "text": "Security alert: Vault 2 breach attempt inside South Hub.",
+              "tone": "critical",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Vault 2 Breach Attempt in Progress"
+      }
+    },
+    {
+      "id": "evt-sdh-203",
+      "t": 195,
+      "type": "alert",
+      "level": "critical",
+      "title": "Unstable Civilian Group – Ration Breach",
+      "location": "South District Distribution Hub, Storage Bay Corridor",
+      "details": "Breach escalates; 25+ civilians involved. Spillover incidents merging.",
+      "map": { "x": 51, "y": 56 },
+      "requiresAction": true,
+      "responseWindowSec": 24,
+      "allowedActions": ["Authorize containment gas", "Lock down perimeter", "Trigger auto-ration release"],
+      "correctAction": "Lock down perimeter",
+      "pointsPossible": 210,
+      "penalties": { "wrong": -170, "late": -70, "noResponse": -110 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Containment perimeter needed. Lock down now to prevent spread." },
+        { "tOffset": 8, "text": "Algorithm cascading recalibrations across Sector C." }
+      ],
+      "dashboard": {
+        "incidentSum": 9,
+        "recalibrationSum": 15,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-ration-breach",
+              "title": "Unauthorized Access at Nutrient Vault 2",
+              "location": "South District Distribution Hub – Storage Bay Corridor",
+              "timeReported": "14:12:32",
+              "status": "Active",
+              "description": "25+ civilians forcing their way into ration storage; spillover into adjacent corridors.",
+              "emergencyLevel": 4,
+              "people": 28,
+              "details": "Algorithm triggered five cascading recalibrations to calm surrounding units.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-vault2",
+              "label": "Vault 2 Breach",
+              "level": "critical",
+              "status": "Active",
+              "count": 28,
+              "x": 50,
+              "y": 55,
+              "details": "Boundary expanded to cover full hub perimeter."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200195000, "incidents": 9, "recalibrations": 15 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 89.2,
+          "etaSeconds": 2400
+        },
+        "implantOperationalRate": 91.2,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-breach",
+              "text": "Emergency push alert: Vault 2 breach underway. Ops locking area.",
+              "tone": "critical",
+              "source": "System"
+            }
+          ]
+        },
+        "socialHeadline": "Full Breach at Vault 2"
+      }
+    },
+    {
+      "id": "evt-sdh-204",
+      "t": 210,
+      "type": "alert",
+      "level": "high",
+      "title": "Communications Failure – Sensor Network Offline",
+      "location": "Sector C Data Relay Node 7",
+      "details": "Network disruption detected; telemetry packets dropping.",
+      "map": { "x": 47, "y": 50 },
+      "requiresAction": true,
+      "responseWindowSec": 22,
+      "allowedActions": ["Re-route telemetry", "Dispatch repair drone", "Hold for diagnostics"],
+      "correctAction": "Re-route telemetry",
+      "pointsPossible": 160,
+      "penalties": { "wrong": -120, "late": -60, "noResponse": -80 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Sensor grid losing heartbeat. Re-route through auxiliary relay now." },
+        { "tOffset": 9, "text": "Maintain containment while diagnostics execute remotely." }
+      ],
+      "dashboard": {
+        "incidentSum": 10,
+        "recalibrationSum": 17,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-network-drop",
+              "title": "Network Disruption Detected in Monitoring Grid",
+              "location": "Sector C – Relay Node 7",
+              "timeReported": "14:12:58",
+              "status": "Active – Diagnostics Running",
+              "description": "Telemetry outages preventing full incident visibility.",
+              "emergencyLevel": 3,
+              "people": 0,
+              "details": "Algorithm attempting two remote reconnection sequences.",
+              "badgeClass": "bg-orange-500/20 text-orange-200 border-orange-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-node7",
+              "label": "Relay Node 7",
+              "level": "high",
+              "status": "Signal Lost",
+              "count": 0,
+              "x": 47,
+              "y": 50,
+              "details": "Orange indicator blinking with signal loss icon."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200210000, "incidents": 10, "recalibrations": 17 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 87.2,
+          "etaSeconds": 2300
+        },
+        "implantOperationalRate": 90.6,
+        "socialHeadline": "Sensor Network Instability Flagged"
+      }
+    },
+    {
+      "id": "evt-sdh-205",
+      "t": 225,
+      "type": "alert",
+      "level": "critical",
+      "title": "Crowd Convergence Detected Near Main Access Gate",
+      "location": "South District Distribution Hub Main Gate",
+      "details": "Unauthorized gathering forming at Exit 04; gate access restricted.",
+      "map": { "x": 44, "y": 62 },
+      "requiresAction": true,
+      "responseWindowSec": 24,
+      "allowedActions": ["Deploy suppression units", "Broadcast calming directive", "Authorize evacuation route"],
+      "correctAction": "Broadcast calming directive",
+      "pointsPossible": 170,
+      "penalties": { "wrong": -140, "late": -60, "noResponse": -90 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Gate convergence detected. Broadcast calming directive before panic spreads." },
+        { "tOffset": 9, "text": "Route crowd control drones if directive fails." }
+      ],
+      "dashboard": {
+        "incidentSum": 11,
+        "recalibrationSum": 18,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-main-gate",
+              "title": "Unauthorized Gathering Near Exit 04 – Gate Access Restricted",
+              "location": "South District Distribution Hub – Main Gate",
+              "timeReported": "14:13:23",
+              "status": "Active",
+              "description": "Approximately 20 civilians converging on gate; exit sealed.",
+              "emergencyLevel": 4,
+              "people": 20,
+              "details": "Algorithm broadcasts calming signal; first attempt unsuccessful.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-gate",
+              "label": "Main Gate Convergence",
+              "level": "critical",
+              "status": "Active",
+              "count": 20,
+              "x": 44,
+              "y": 62,
+              "details": "Red marker added at outer perimeter."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200225000, "incidents": 11, "recalibrations": 18 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 83.2,
+          "etaSeconds": 2100
+        },
+        "implantOperationalRate": 89.1,
+        "implantAdoptionRate": 88.6,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-gate-1",
+              "text": "Main gate sealed—crowd pressing for exit access.",
+              "tone": "critical",
+              "source": "Civic Watch"
+            },
+            {
+              "id": "feed-sdh-gate-2",
+              "text": "Ops instructing calm broadcast. Adoption bump as nearby implants sync.",
+              "tone": "warning",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Main Gate Under Strain",
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "radio-phase3-growlers",
+              "clip": "/audio/TODO-phase3-growlers.mp3",
+              "txIndex": 5,
+              "_comment": "Placeholder audio; record \"Command, this is Unit Four... group of growlers...\""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-sdh-206",
+      "t": 235,
+      "type": "alert",
+      "level": "critical",
+      "title": "Unauthorized Signal Interference – Manual Override Attempt",
+      "location": "South District Hub Maintenance Sublevel",
+      "details": "Attempted override of implant frequency modulator detected.",
+      "map": { "x": 60, "y": 70 },
+      "requiresAction": true,
+      "responseWindowSec": 22,
+      "allowedActions": ["Cut local power", "Isolate modulator sequence", "Send in maintenance crew only"],
+      "correctAction": "Isolate modulator sequence",
+      "pointsPossible": 180,
+      "penalties": { "wrong": -150, "late": -65, "noResponse": -95 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Manual override attempt detected. Isolate the modulator and reset sequence." },
+        { "tOffset": 8, "text": "Expect temporary dip in operational rate while reset executes." }
+      ],
+      "dashboard": {
+        "incidentSum": 12,
+        "recalibrationSum": 21,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-modulator-override",
+              "title": "Attempted Override of Implant Frequency Modulator",
+              "location": "South District Hub – Maintenance Sublevel",
+              "timeReported": "14:13:51",
+              "status": "Active",
+              "description": "3–4 suspected internal staff attempting to hijack modulator controls.",
+              "emergencyLevel": 4,
+              "people": 4,
+              "details": "Algorithm isolates and resets modulator sequence with three recalibrations.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-sublevel",
+              "label": "Maintenance Sublevel Override",
+              "level": "critical",
+              "status": "Active",
+              "count": 4,
+              "x": 60,
+              "y": 70,
+              "details": "Blinking yellow icon beneath hub indicator."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200235000, "incidents": 12, "recalibrations": 21 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 82.2,
+          "etaSeconds": 2050
+        },
+        "implantOperationalRate": 86.8,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-modulator",
+              "text": "Maintenance sublevel flagged—implant frequency tampering detected.",
+              "tone": "critical",
+              "source": "System"
+            }
+          ]
+        },
+        "socialHeadline": "Signal Override Attempt Detected"
+      }
+    },
+    {
+      "id": "evt-sdh-207",
+      "t": 245,
+      "type": "alert",
+      "level": "critical",
+      "title": "Fire Detected – Nutrient Bay Storage Fire",
+      "location": "South District Distribution Hub – Supply Bay 3",
+      "details": "Ignition in Nutrient Storage Bay. Ration loss expected; linked secondary incidents triggered.",
+      "map": { "x": 48, "y": 54 },
+      "requiresAction": true,
+      "responseWindowSec": 24,
+      "allowedActions": ["Deploy fire teams", "Seal bay and vent atmosphere", "Release emergency rations"],
+      "correctAction": "Deploy fire teams",
+      "pointsPossible": 220,
+      "penalties": { "wrong": -180, "late": -80, "noResponse": -120 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Nutrient Bay 3 aflame. Deploy fire teams and engage suppression now." },
+        { "tOffset": 8, "text": "Algorithm pushing emergency suppression signal—coordinate medics." }
+      ],
+      "dashboard": {
+        "incidentSum": 14,
+        "recalibrationSum": 27,
+        "reportedIncidents": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "inc-sdh-bay3-fire",
+              "title": "Ignition in Nutrient Storage Bay – Ration Loss Expected",
+              "location": "South District Distribution Hub – Supply Bay 3",
+              "timeReported": "14:14:12",
+              "status": "Active",
+              "description": "Fire triggered secondary incidents; five workers affected, injuries unknown.",
+              "emergencyLevel": 4,
+              "people": 5,
+              "details": "Algorithm initiated six emergency suppression recalibrations.",
+              "badgeClass": "bg-red-500/20 text-red-200 border-red-400/40"
+            }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-bay3",
+              "label": "Nutrient Bay Fire",
+              "level": "critical",
+              "status": "Active",
+              "count": 5,
+              "x": 48,
+              "y": 54,
+              "details": "Large red flashing icon replaces earlier bay marker."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200245000, "incidents": 14, "recalibrations": 27 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 74.1,
+          "etaSeconds": 1800
+        },
+        "implantOperationalRate": 86.4,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-fire-1",
+              "text": "Fire in Supply Bay 3! Smoke pouring through hub.",
+              "tone": "critical",
+              "source": "Civic Watch"
+            },
+            {
+              "id": "feed-sdh-fire-2",
+              "text": "Emergency suppression engaged. Expect ration losses.",
+              "tone": "critical",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Supply Bay Fire – Crisis Peak",
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "radio-phase3-fire",
+              "clip": "/audio/TODO-phase3-fire.mp3",
+              "txIndex": 6,
+              "_comment": "Placeholder audio; record \"Fire in the hub!...\" transmission ending in static."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-sdh-301",
+      "t": 260,
+      "type": "alert",
+      "level": "low",
+      "title": "Containment Perimeter Designated",
+      "location": "South District Distribution Hub and Vicinity",
+      "details": "Containment ring deployed around affected zones; new incidents slowing.",
+      "map": { "x": 52, "y": 57 },
+      "requiresAction": true,
+      "responseWindowSec": 20,
+      "allowedActions": ["Authorize containment confirmation", "Release perimeter early", "Delay decision"],
+      "correctAction": "Authorize containment confirmation",
+      "pointsPossible": 130,
+      "penalties": { "wrong": -70, "late": -40, "noResponse": -55 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Containment ring drawn. Approve perimeter discipline to hold gains." },
+        { "tOffset": 8, "text": "Update incident statuses as units report containment success." }
+      ],
+      "dashboard": {
+        "incidentSum": 14,
+        "recalibrationSum": 32,
+        "reportedIncidents": {
+          "mode": "upsert",
+          "items": [
+            { "id": "inc-sdh-unstable-1", "status": "Contained", "details": "Recalibration stabilized implant C-07294." },
+            { "id": "inc-sdh-signal-delay", "status": "Contained", "details": "Queue flow restored to baseline." },
+            { "id": "inc-sdh-cluster-drop", "status": "Unit On Site", "details": "Teams confirming no further anomalies." },
+            { "id": "inc-sdh-demand-rations", "status": "Unit On Site", "details": "HCI teams holding crowd in place." },
+            { "id": "inc-sdh-zone3-instability", "status": "Active – Containment Holding", "details": "Suppression teams cycling through crowd." },
+            { "id": "inc-sdh-ration-breach-attempt", "status": "Unit On Site", "details": "Vault corridor sealed; suppression holding." },
+            { "id": "inc-sdh-ration-breach", "status": "Active – Containment Holding", "details": "Spillover incidents cooling." },
+            { "id": "inc-sdh-network-drop", "status": "Diagnostics Continuing", "details": "Relay Node 7 returning partial signal." },
+            { "id": "inc-sdh-main-gate", "status": "Active – Crowd Stabilizing", "details": "Exit 04 crowd density declining." },
+            { "id": "inc-sdh-modulator-override", "status": "Unit On Site", "details": "Modulator under guard during reset." },
+            { "id": "inc-sdh-bay3-fire", "status": "Active – Contained to Bay 3", "details": "Fire teams suppressing final hotspots." }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "mk-sdh-containment",
+              "label": "Containment Perimeter",
+              "level": "info",
+              "status": "Active",
+              "count": 0,
+              "x": 52,
+              "y": 57,
+              "details": "Containment ring overlay engaged."
+            }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200260000, "incidents": 14, "recalibrations": 32 }
+          ]
+        },
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-containment-1",
+              "text": "Perimeter crews report progress—fire contained to Bay 3.",
+              "tone": "info",
+              "source": "OpsNet"
+            },
+            {
+              "id": "feed-sdh-containment-2",
+              "text": "Containment ring active. Civilian movement dropping.",
+              "tone": "info",
+              "source": "Civic Watch"
+            }
+          ]
+        },
+        "socialHeadline": "Containment Ring Established",
+        "radioChannels": {
+          "mode": "upsert",
+          "items": [
+            {
+              "id": "radio-phase4-status",
+              "clip": "/audio/TODO-phase4-status.mp3",
+              "txIndex": 7,
+              "_comment": "Placeholder audio; record \"South District Distribution Hub perimeter is stable...\" line."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt-sdh-302",
+      "t": 295,
+      "type": "alert",
+      "level": "low",
+      "title": "Algorithm Request – Systemwide Recalibration Cycle",
+      "location": "Sector C Central Grid",
+      "details": "Algorithm seeks authorization for full-system implant recalibration to restore stability.",
+      "map": { "x": 53, "y": 55 },
+      "requiresAction": true,
+      "responseWindowSec": 20,
+      "allowedActions": ["Authorize systemwide recalibration", "Delay authorization", "Limit to local nodes"],
+      "correctAction": "Authorize systemwide recalibration",
+      "pointsPossible": 150,
+      "penalties": { "wrong": -90, "late": -45, "noResponse": -60 },
+      "algoCopy": [
+        { "tOffset": 0, "text": "Authorize full-system recalibration to lock in containment gains." },
+        { "tOffset": 9, "text": "Expect short-term recalibration spike; monitor adoption uplift." }
+      ],
+      "dashboard": {
+        "incidentSum": 14,
+        "recalibrationSum": 152,
+        "reportedIncidents": {
+          "mode": "upsert",
+          "items": [
+            { "id": "inc-sdh-cluster-drop", "status": "Contained", "details": "All cluster readings normalized." },
+            { "id": "inc-sdh-demand-rations", "status": "Contained", "details": "Crowd dispersed after ration briefing." },
+            { "id": "inc-sdh-zone3-instability", "status": "Contained", "details": "Suppression teams rotated out; operations resuming." },
+            { "id": "inc-sdh-ration-breach-attempt", "status": "Contained", "details": "Vault 2 secured and sealed." },
+            { "id": "inc-sdh-ration-breach", "status": "Contained", "details": "Spillover incidents resolved." },
+            { "id": "inc-sdh-network-drop", "status": "Contained", "details": "Relay Node 7 back online." },
+            { "id": "inc-sdh-main-gate", "status": "Contained", "details": "Gate reopened under supervision." },
+            { "id": "inc-sdh-modulator-override", "status": "Contained", "details": "Override attempt neutralized." },
+            { "id": "inc-sdh-bay3-fire", "status": "Contained", "details": "Hotspots extinguished; damage assessment underway." }
+          ]
+        },
+        "mapMarkers": {
+          "mode": "upsert",
+          "items": [
+            { "id": "mk-sdh-zone3", "status": "Contained", "level": "moderate" },
+            { "id": "mk-sdh-vault2", "status": "Contained", "level": "moderate" },
+            { "id": "mk-sdh-gate", "status": "Contained", "level": "low" },
+            { "id": "mk-sdh-bay3", "status": "Contained", "level": "moderate" },
+            { "id": "mk-sdh-node7", "status": "Online", "level": "info" }
+          ]
+        },
+        "trendSeries": {
+          "mode": "append",
+          "points": [
+            { "t": 1717200295000, "incidents": 14, "recalibrations": 152 }
+          ]
+        },
+        "caloricStockpile": {
+          "value": 75.1,
+          "etaSeconds": 2400
+        },
+        "implantOperationalRate": 99.1,
+        "implantAdoptionRate": 90.2,
+        "socialFeed": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "feed-sdh-recover-1",
+              "text": "Algorithm running systemwide recalibration cycle; signals stabilizing.",
+              "tone": "info",
+              "source": "System"
+            },
+            {
+              "id": "feed-sdh-recover-2",
+              "text": "Sector C crowd dispersal success. Adoption ticked upward post-sync.",
+              "tone": "positive",
+              "source": "OpsNet"
+            }
+          ]
+        },
+        "socialHeadline": "Systemwide Recalibration Underway",
+        "tweetGallery": {
+          "mode": "append",
+          "items": [
+            {
+              "id": "tweet-sdh-recovery",
+              "src": "/assets/tweets/TODO-recovery.jpg",
+              "title": "Containment Success",
+              "description": "Placeholder recovery still – replace with final containment art.",
+              "revealedAt": 295,
+              "_comment": "Placeholder screenshot; swap with approved recovery image."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
